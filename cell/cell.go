@@ -16,9 +16,13 @@ const (
 )
 
 const (
-	BaseHealth = 50
-	BaseEnergy = 25
-	BaseWeight = 5
+	BaseHealth              = 50
+	BaseEnergy              = 25
+	BaseWeight              = 5
+	BaseEnergyDecrement     = 5
+	BaseHealthDecrement     = 1
+	AgeInfluenceMultiplier  = 0.5
+	BaseReproduceEnergyCost = 50
 )
 
 // Registers list
@@ -69,6 +73,8 @@ type Cell struct {
 	Health byte
 	Energy byte
 	Weight byte
+
+	Died   bool
 	Picked bool
 
 	Genome     Genome
@@ -107,9 +113,22 @@ func (c Cell) GetID() uint64 {
 func (c Cell) GetInstance() object.Object {
 	return c.World.GetObject(c.Name)
 }
-func (c Cell) Handle() {
-	self := c.GetInstance().(*Cell)
+func (c Cell) Handle(yearChanged, epochChanged bool) {
+	if c.Died {
+		return
+	}
+
+	self, success := c.GetInstance().(*Cell)
+	if !success {
+		return
+	}
+
 	self.handleCommand(self.currentCommad())
+	self.SpendEnergy(BaseEnergyDecrement)
+
+	if yearChanged {
+		self.Age++
+	}
 }
 
 // Pickable interface
@@ -206,8 +225,89 @@ func (c Cell) GetHealth() byte {
 func (c Cell) GetEnergy() byte {
 	return c.Energy
 }
+func (c Cell) IsDied() bool {
+	return c.Died
+}
+func (c Cell) LoseHealth(health byte) bool {
+	if c.Died {
+		return false
+	}
+
+	self, success := c.GetInstance().(*Cell)
+	if !success {
+		return false
+	}
+
+	if health < self.Health {
+		self.Health -= health
+	} else {
+		self.Die()
+	}
+
+	return true
+}
+func (c Cell) SpendEnergy(energy byte) bool {
+	self, success := c.GetInstance().(*Cell)
+	if !success {
+		return false
+	}
+
+	if self.Energy > 0 {
+		// Decrement energy
+		energyDec := byte(math.Round(float64(energy) * float64(self.Age) * AgeInfluenceMultiplier))
+		if energyDec < self.Energy {
+			self.Energy -= energyDec
+		} else {
+			self.Energy = 0
+		}
+	} else {
+		// If there is no energy then decrement health
+		healthDec := byte(math.Round(BaseHealthDecrement * float64(self.Age) * AgeInfluenceMultiplier))
+		self.LoseHealth(healthDec)
+	}
+
+	return true
+}
+func (c Cell) HealHealth(health byte) bool {
+	if c.Died {
+		return false
+	}
+
+	self, success := c.GetInstance().(*Cell)
+	if !success {
+		return false
+	}
+
+	self.Health += health
+	return true
+}
+func (c Cell) IncreaseEnergy(energy byte) bool {
+	if c.Died {
+		return false
+	}
+
+	self, success := c.GetInstance().(*Cell)
+	if !success {
+		return false
+	}
+
+	self.Energy += energy
+	return true
+}
 func (c Cell) Reproduce() bool {
+	New(c.World, &c)
+	c.SpendEnergy(BaseReproduceEnergyCost)
 	return false
+}
+func (c Cell) Die() bool {
+	self, success := c.GetInstance().(*Cell)
+	if !success {
+		return false
+	}
+	self.Health = 0
+	self.Died = true
+	self.World.RemoveObject(self.Name)
+	return true
 }
 
 // Private methods
@@ -222,6 +322,7 @@ func (c *Cell) incCounter() uint64 {
 func (c *Cell) recycle(rType uint64) {
 	switch rType {
 	case RCL_SUNENERGY:
+		c.IncreaseEnergy(c.World.GetSunlightAtPosition(c.Position))
 	case RCL_BAGAGE:
 	}
 }

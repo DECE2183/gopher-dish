@@ -2,11 +2,48 @@ package cell
 
 import (
 	"gopher-dish/utils"
+	"hash/crc64"
+	"io"
+	"math/rand"
+)
+
+const (
+	GenomeMutationRate = 1
 )
 
 type Genome struct {
 	Hash uint64
 	Code [GenomeLength]Command
+}
+
+func (g Genome) Read(out []byte) (n int, err error) {
+	if len(out) < len(g.Code) {
+		n = len(out)
+	} else {
+		n = len(g.Code)
+	}
+
+	for i := 0; i < n; i++ {
+		out[i] = byte(g.Code[i])
+	}
+
+	err = io.EOF
+	return
+}
+
+func (g Genome) Write(out []byte) (n int, err error) {
+	if len(out) < len(g.Code) {
+		n = len(out)
+	} else {
+		n = len(g.Code)
+	}
+
+	for i := 0; i < n; i++ {
+		g.Code[i] = Command(out[i])
+	}
+
+	err = io.EOF
+	return
 }
 
 func CreateBaseGenome() Genome {
@@ -55,9 +92,21 @@ func CreateBaseGenome() Genome {
 	newGenome.Code[i.Inc()] = CND_NONE
 	newGenome.Code[i.Inc()] = 0
 
+	crc := crc64.New(crc64.MakeTable(crc64.ISO))
+	io.Copy(crc, newGenome)
+	newGenome.Hash = crc.Sum64()
+
 	return newGenome
 }
 
 func (g Genome) Mutate() Genome {
+	for i := 0; i < GenomeMutationRate; i++ {
+		g.Code[rand.Intn(GenomeLength)] = Command(rand.Intn(256))
+	}
+
+	crc := crc64.New(crc64.MakeTable(crc64.ISO))
+	io.Copy(crc, g)
+	g.Hash = crc.Sum64()
+
 	return g
 }

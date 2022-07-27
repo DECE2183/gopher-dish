@@ -3,5 +3,5 @@ package object
 type Object interface {
 	GetID() uint64
 	GetInstance() Object
-	Handle()
+	Handle(yearChanged, epochChanged bool)
 }

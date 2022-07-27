@@ -1,7 +1,6 @@
 package cell
 
 import (
-	"fmt"
 	"gopher-dish/object"
 )
 
@@ -134,6 +133,9 @@ var commandMap = map[Command]CommandHandler{
 
 		cnt := c.Brain.StackCounter
 		c.Brain.Stack[cnt].JumpPosition = c.Brain.CommandCounter + 1
+		if c.Brain.Stack[cnt].JumpPosition >= GenomeLength {
+			c.Brain.Stack[cnt].JumpPosition = 0
+		}
 		c.Brain.Stack[cnt].JumpRegisters = c.Brain.Registers
 		c.Brain.Stack[cnt].JumpCompareFlag = c.Brain.CompareFlag
 		c.Brain.StackCounter++
@@ -222,7 +224,12 @@ var commandMap = map[Command]CommandHandler{
 		src := truncCmd(c.Genome.Code[c.incCounter()], RegistersCount)
 		op := truncCmd(c.Genome.Code[c.incCounter()], RegistersCount)
 
-		c.Brain.Registers[dest] = c.Brain.Registers[src] / c.Brain.Registers[op]
+		if c.Brain.Registers[op] == 0 {
+			c.Brain.Registers[dest] = 0xFF
+		} else {
+			c.Brain.Registers[dest] = c.Brain.Registers[src] / c.Brain.Registers[op]
+		}
+
 		c.incCounter()
 	},
 
@@ -295,7 +302,6 @@ var commandMap = map[Command]CommandHandler{
 func (c *Cell) handleCommand(cmd Command) {
 	h, exists := commandMap[cmd]
 	if !exists {
-		_ = fmt.Errorf("Command doesn't exists: %v\n", cmd)
 		return
 	}
 

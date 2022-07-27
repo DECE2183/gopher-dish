@@ -6,6 +6,9 @@ import (
 )
 
 const (
+	WorldTicksPerYear  = 10
+	WorldYearsPerEpoch = 100
+
 	WorldSunlightMultiplier = 1.0
 	WorldSunlightBeginValue = 25.0
 	WorldSunlightEndValue   = 0.0
@@ -30,8 +33,9 @@ func remap[T number](value, inMin, inMax, outMin, outMax T) T {
 type World struct {
 	Width, Height uint32
 
-	Epoch uint64
+	Ticks uint64
 	Year  uint64
+	Epoch uint64
 
 	Sunlight [][]byte
 	Minerals [][]byte
@@ -67,8 +71,46 @@ func (w *World) GetObject(id uint64) object.Object {
 	}
 }
 
+func (w *World) GetSunlightAtPosition(pos object.Position) byte {
+	if pos.X < 0 || pos.X > int32(w.Width) {
+		return 0
+	}
+	if pos.Y < 0 || pos.Y > int32(w.Height) {
+		return 0
+	}
+	return w.Sunlight[pos.X][pos.Y]
+}
+
+func (w *World) GetMineralsAtPosition(pos object.Position) byte {
+	if pos.X < 0 || pos.X > int32(w.Width) {
+		return 0
+	}
+	if pos.Y < 0 || pos.Y > int32(w.Height) {
+		return 0
+	}
+	return w.Minerals[pos.X][pos.Y]
+}
+
 func (w *World) RemoveObject(id uint64) {
 	delete(w.Objects, id)
+}
+
+func (w *World) Handle() {
+	var yearChanged, epochChanged bool
+
+	w.Ticks++
+	if w.Ticks%WorldTicksPerYear == 0 {
+		yearChanged = true
+		w.Year++
+	}
+	if w.Year%WorldYearsPerEpoch == 0 {
+		epochChanged = true
+		w.Epoch++
+	}
+
+	for _, o := range w.Objects {
+		o.Handle(yearChanged, epochChanged)
+	}
 }
 
 func (w *World) calculateSunlight() {
