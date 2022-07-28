@@ -19,10 +19,10 @@ const (
 	BaseHealth              = 50
 	BaseEnergy              = 25
 	BaseWeight              = 5
-	BaseEnergyDecrement     = 5
-	BaseHealthDecrement     = 1
-	AgeInfluenceMultiplier  = 0.5
-	BaseReproduceEnergyCost = 50
+	BaseEnergyDecrement     = 2
+	BaseHealthDecrement     = 3
+	AgeInfluenceMultiplier  = 0.3
+	BaseReproduceEnergyCost = 35
 )
 
 // Registers list
@@ -91,19 +91,27 @@ type Cell struct {
 func New(world *world.World, parent *Cell) *Cell {
 	c := &Cell{Health: BaseHealth, Energy: BaseEnergy, Weight: BaseWeight, World: world}
 
-	c.Name = world.AddObject(c)
 	if parent != nil {
-		c.Generation = parent.Generation + 1
 		for i := 0; i < RelatedDepth-1; i++ {
 			c.ParentsChain[i+1] = parent.ParentsChain[i]
 		}
 		c.ParentsChain[0] = parent.Name
+		c.Generation = parent.Generation + 1
+		c.Position = parent.Position
 		c.Genome = parent.Genome.Mutate()
 	} else {
+		c.Position = world.GetCenter()
+		c.Position.Y /= 2
 		c.Genome = CreateBaseGenome()
 	}
 
-	return c
+	c.Name, c.Position = world.AddObject(c)
+
+	if c.Name > 0 {
+		return c
+	} else {
+		return nil
+	}
 }
 
 // Object interface
@@ -112,6 +120,18 @@ func (c Cell) GetID() uint64 {
 }
 func (c Cell) GetInstance() object.Object {
 	return c.World.GetObject(c.Name)
+}
+func (c Cell) Prepare() {
+	if c.Died {
+		return
+	}
+
+	self, success := c.GetInstance().(*Cell)
+	if !success {
+		return
+	}
+
+	self.executeCommand(self.currentCommad())
 }
 func (c Cell) Handle(yearChanged, epochChanged bool) {
 	if c.Died {
@@ -123,8 +143,9 @@ func (c Cell) Handle(yearChanged, epochChanged bool) {
 		return
 	}
 
-	self.handleCommand(self.currentCommad())
-	self.SpendEnergy(BaseEnergyDecrement)
+	for i := 0; i < GenomeLength && !self.handleCommand(self.currentCommad()); i++ {
+		self.SpendEnergy(BaseEnergyDecrement)
+	}
 
 	if yearChanged {
 		self.Age++
@@ -180,30 +201,33 @@ func (c Cell) MoveInDirection(rot object.Rotation) bool {
 		return false
 	}
 
+	newPos := self.Position
+
 	switch self.Rotation.Degree {
 	case 0:
-		self.Position.X++
+		newPos.X++
 	case 45:
-		self.Position.X++
-		self.Position.Y--
+		newPos.X++
+		newPos.Y--
 	case 90:
-		self.Position.Y--
+		newPos.Y--
 	case 135:
-		self.Position.X--
-		self.Position.Y--
+		newPos.X--
+		newPos.Y--
 	case 180:
-		self.Position.X--
+		newPos.X--
 	case 225:
-		self.Position.X--
-		self.Position.Y++
+		newPos.X--
+		newPos.Y++
 	case 270:
-		self.Position.Y++
+		newPos.Y++
 	case 315:
-		self.Position.X++
-		self.Position.Y++
+		newPos.X++
+		newPos.Y++
 	}
 
-	return true
+	self.SpendEnergy(self.Weight)
+	return self.World.MoveObject(self, newPos)
 }
 func (c Cell) Rotate(rot object.Rotation) bool {
 	self, success := c.GetInstance().(*Cell)
@@ -254,7 +278,7 @@ func (c Cell) SpendEnergy(energy byte) bool {
 
 	if self.Energy > 0 {
 		// Decrement energy
-		energyDec := byte(math.Round(float64(energy) * float64(self.Age) * AgeInfluenceMultiplier))
+		energyDec := byte(math.Round(float64(energy) + float64(self.Age)*AgeInfluenceMultiplier))
 		if energyDec < self.Energy {
 			self.Energy -= energyDec
 		} else {
@@ -295,9 +319,12 @@ func (c Cell) IncreaseEnergy(energy byte) bool {
 	return true
 }
 func (c Cell) Reproduce() bool {
-	New(c.World, &c)
 	c.SpendEnergy(BaseReproduceEnergyCost)
-	return false
+	newCell := New(c.World, &c)
+	if newCell == nil {
+		return false
+	}
+	return true
 }
 func (c Cell) Die() bool {
 	self, success := c.GetInstance().(*Cell)

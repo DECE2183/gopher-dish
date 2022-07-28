@@ -11,6 +11,11 @@ func truncCmd(cmd Command, max uint64) uint64 {
 type Command byte
 type CommandHandler func(*Cell)
 
+type CommandDescriptor struct {
+	handler     CommandHandler
+	synchronous bool
+}
+
 // Commands list
 const (
 	// No operation command
@@ -84,13 +89,13 @@ const (
 	RCL_ENUM_SIZE
 )
 
-var commandMap = map[Command]CommandHandler{
-	CMD_NOP: func(c *Cell) {
+var commandMap = map[Command]CommandDescriptor{
+	CMD_NOP: {func(c *Cell) {
 		c.incCounter()
-	},
+	}, false},
 
 	// Compare values in registers and put result to CompareFlag
-	CMD_CMP: func(c *Cell) {
+	CMD_CMP: {func(c *Cell) {
 		op1 := c.Brain.Registers[truncCmd(c.Genome.Code[c.incCounter()], RegistersCount)]
 		op2 := c.Brain.Registers[truncCmd(c.Genome.Code[c.incCounter()], RegistersCount)]
 
@@ -109,9 +114,9 @@ var commandMap = map[Command]CommandHandler{
 		}
 
 		c.incCounter()
-	},
+	}, false},
 	// Jump according to condition in CompareFlag
-	CMD_JMP: func(c *Cell) {
+	CMD_JMP: {func(c *Cell) {
 		cond := truncCmd(c.Genome.Code[c.incCounter()], CND_ENUM_SIZE)
 		pos := truncCmd(c.Genome.Code[c.incCounter()], GenomeLength)
 
@@ -120,9 +125,9 @@ var commandMap = map[Command]CommandHandler{
 		} else {
 			c.incCounter()
 		}
-	},
+	}, false},
 	// Memorize current registers and command counter and dive into subprogramm
-	CMD_DIVE: func(c *Cell) {
+	CMD_DIVE: {func(c *Cell) {
 		cond := truncCmd(c.Genome.Code[c.incCounter()], CND_ENUM_SIZE)
 		pos := truncCmd(c.Genome.Code[c.incCounter()], GenomeLength)
 
@@ -145,9 +150,9 @@ var commandMap = map[Command]CommandHandler{
 		} else {
 			c.incCounter()
 		}
-	},
+	}, false},
 	// Return to main programm
-	CMD_LIFT: func(c *Cell) {
+	CMD_LIFT: {func(c *Cell) {
 		cond := truncCmd(c.Genome.Code[c.incCounter()], CND_ENUM_SIZE)
 
 		if c.Brain.StackCounter == 0 {
@@ -164,62 +169,62 @@ var commandMap = map[Command]CommandHandler{
 		} else {
 			c.incCounter()
 		}
-	},
+	}, false},
 
 	// Put value to register
-	CMD_PUT: func(c *Cell) {
+	CMD_PUT: {func(c *Cell) {
 		reg := truncCmd(c.Genome.Code[c.incCounter()], RegistersCount)
 		val := byte(c.Genome.Code[c.incCounter()])
 
 		c.Brain.Registers[reg] = val
 		c.incCounter()
-	},
+	}, false},
 	// Save value from register to memory
-	CMD_SAVE: func(c *Cell) {
+	CMD_SAVE: {func(c *Cell) {
 		reg := truncCmd(c.Genome.Code[c.incCounter()], RegistersCount)
 		mem := truncCmd(c.Genome.Code[c.incCounter()], MemorySize)
 
 		c.Brain.Memory[mem] = c.Brain.Registers[reg]
 		c.incCounter()
-	},
+	}, false},
 	// Load value from memory to registor
-	CMD_LOAD: func(c *Cell) {
+	CMD_LOAD: {func(c *Cell) {
 		reg := truncCmd(c.Genome.Code[c.incCounter()], RegistersCount)
 		mem := truncCmd(c.Genome.Code[c.incCounter()], MemorySize)
 
 		c.Brain.Registers[reg] = c.Brain.Memory[mem]
 		c.incCounter()
-	},
+	}, false},
 
 	// Add two regs command
-	CMD_ADD: func(c *Cell) {
+	CMD_ADD: {func(c *Cell) {
 		dest := truncCmd(c.Genome.Code[c.incCounter()], RegistersCount)
 		src := truncCmd(c.Genome.Code[c.incCounter()], RegistersCount)
 		op := truncCmd(c.Genome.Code[c.incCounter()], RegistersCount)
 
 		c.Brain.Registers[dest] = c.Brain.Registers[src] + c.Brain.Registers[op]
 		c.incCounter()
-	},
+	}, false},
 	// Subtract two regs command
-	CMD_SUB: func(c *Cell) {
+	CMD_SUB: {func(c *Cell) {
 		dest := truncCmd(c.Genome.Code[c.incCounter()], RegistersCount)
 		src := truncCmd(c.Genome.Code[c.incCounter()], RegistersCount)
 		op := truncCmd(c.Genome.Code[c.incCounter()], RegistersCount)
 
 		c.Brain.Registers[dest] = c.Brain.Registers[src] - c.Brain.Registers[op]
 		c.incCounter()
-	},
+	}, false},
 	// Multiply two regs command
-	CMD_MUL: func(c *Cell) {
+	CMD_MUL: {func(c *Cell) {
 		dest := truncCmd(c.Genome.Code[c.incCounter()], RegistersCount)
 		src := truncCmd(c.Genome.Code[c.incCounter()], RegistersCount)
 		op := truncCmd(c.Genome.Code[c.incCounter()], RegistersCount)
 
 		c.Brain.Registers[dest] = c.Brain.Registers[src] * c.Brain.Registers[op]
 		c.incCounter()
-	},
+	}, false},
 	// Divide two regs command
-	CMD_DIV: func(c *Cell) {
+	CMD_DIV: {func(c *Cell) {
 		dest := truncCmd(c.Genome.Code[c.incCounter()], RegistersCount)
 		src := truncCmd(c.Genome.Code[c.incCounter()], RegistersCount)
 		op := truncCmd(c.Genome.Code[c.incCounter()], RegistersCount)
@@ -231,10 +236,10 @@ var commandMap = map[Command]CommandHandler{
 		}
 
 		c.incCounter()
-	},
+	}, false},
 
 	// Relative move command
-	CMD_MOVE: func(c *Cell) {
+	CMD_MOVE: {func(c *Cell) {
 		dirReg := truncCmd(c.Genome.Code[c.incCounter()], RegistersCount)
 		dir := (dirReg % 8) * 45
 
@@ -246,9 +251,9 @@ var commandMap = map[Command]CommandHandler{
 			c.Brain.CompareFlag = CND_FAIL
 		}
 		c.incCounter()
-	},
+	}, true},
 	// Relative rotation  command
-	CMD_ROTATE: func(c *Cell) {
+	CMD_ROTATE: {func(c *Cell) {
 		dirReg := truncCmd(c.Genome.Code[c.incCounter()], RegistersCount)
 		dir := (dirReg % 8) * 45
 
@@ -260,52 +265,65 @@ var commandMap = map[Command]CommandHandler{
 			c.Brain.CompareFlag = CND_FAIL
 		}
 		c.incCounter()
-	},
+	}, false},
 	// Recycle stuff to energy
-	CMD_RECYCLE: func(c *Cell) {
+	CMD_RECYCLE: {func(c *Cell) {
 		recycleType := truncCmd(c.Genome.Code[c.incCounter()], RCL_ENUM_SIZE)
 		c.recycle(recycleType)
 		c.incCounter()
-	},
+	}, true},
 	// Reproduce
-	CMD_REPRODUCE: func(c *Cell) {
+	CMD_REPRODUCE: {func(c *Cell) {
 		c.Reproduce()
 		c.incCounter()
-	},
+	}, true},
 
 	// Get self age/10 and write to register
-	CMD_GETAGE: func(c *Cell) {
+	CMD_GETAGE: {func(c *Cell) {
 		dest := truncCmd(c.Genome.Code[c.incCounter()], RegistersCount)
 		c.Brain.Registers[dest] = byte(c.GetAge() / 10)
 		c.incCounter()
-	},
+	}, false},
 	// Get self health and write to register
-	CMD_GETHEALTH: func(c *Cell) {
+	CMD_GETHEALTH: {func(c *Cell) {
 		dest := truncCmd(c.Genome.Code[c.incCounter()], RegistersCount)
 		c.Brain.Registers[dest] = c.GetHealth()
 		c.incCounter()
-	},
+	}, false},
 	// Get self energy and write to register
-	CMD_GETENERGY: func(c *Cell) {
+	CMD_GETENERGY: {func(c *Cell) {
 		dest := truncCmd(c.Genome.Code[c.incCounter()], RegistersCount)
 		c.Brain.Registers[dest] = c.GetEnergy()
 		c.incCounter()
-	},
+	}, false},
 	// Get self command counter and write to register
-	CMD_GETCOUNTER: func(c *Cell) {
+	CMD_GETCOUNTER: {func(c *Cell) {
 		dest := truncCmd(c.Genome.Code[c.incCounter()], RegistersCount)
 		c.Brain.Registers[dest] = byte(c.Brain.CommandCounter + 1)
 		c.incCounter()
-	},
+	}, false},
 }
 
-func (c *Cell) handleCommand(cmd Command) {
-	h, exists := commandMap[cmd]
+func (c *Cell) executeCommand(cmd Command) {
+	cmdDesc, exists := commandMap[cmd]
 	if !exists {
 		return
 	}
+	cmdDesc.handler(c)
+}
 
-	h(c)
+func (c *Cell) handleCommand(cmd Command) bool {
+	cmdDesc, exists := commandMap[cmd]
+	if !exists {
+		return false
+	}
+
+	if cmdDesc.synchronous {
+		return true
+	}
+
+	cmdDesc.handler(c)
+	return false
 }
 
 func (c *Cell) currentCommad() Command {
