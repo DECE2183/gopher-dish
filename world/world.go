@@ -53,6 +53,7 @@ type World struct {
 
 	Places        [][]object.Movable
 	PlacesUpdated chan bool
+	PlacesDrawn   chan bool
 
 	state           uint
 	objectsToRemove chan uint64
@@ -68,6 +69,7 @@ func New(width, height uint32) *World {
 		w.Places[i] = make([]object.Movable, w.Height)
 	}
 	w.PlacesUpdated = make(chan bool)
+	w.PlacesDrawn = make(chan bool)
 	w.Objects = make(map[uint64]object.Movable)
 
 	w.calculateSunlight()
@@ -204,10 +206,11 @@ func (w *World) Handle() {
 	if w.Ticks%WorldTicksPerYear == 0 {
 		yearChanged = true
 		w.Year++
-	}
-	if w.Year%WorldYearsPerEpoch == 0 {
-		epochChanged = true
-		w.Epoch++
+
+		if w.Year%WorldYearsPerEpoch == 0 {
+			epochChanged = true
+			w.Epoch++
+		}
 	}
 
 	w.state = WORLD_STATE_PREPARE
@@ -245,7 +248,8 @@ func (w *World) Handle() {
 		w.removeObject(id)
 	}
 
-	w.PlacesUpdated <- true
+	// w.PlacesUpdated <- true
+	// <-w.PlacesDrawn
 }
 
 func (w *World) calculateSunlight() {
