@@ -3,36 +3,44 @@ package main
 import (
 	"fmt"
 	"gopher-dish/cell"
+	"gopher-dish/gui"
 	"gopher-dish/world"
 	"math/rand"
 	"time"
 )
 
 const (
-	WorldTickTime = 15 * time.Millisecond
+	WorldTickInterval = 15 * time.Millisecond
+	UITickInterval    = 15 * time.Millisecond
 )
 
 var (
 	WorldFramerate    int64
 	WorldLastTickTime time.Time
+	UIFramerate       int64
+	UILastTickTime    time.Time
 )
 
 func main() {
 	rand.Seed(time.Now().UnixNano())
 
-	myWorld := world.New(256, 64)
-	cell.New(myWorld, nil)
+	baseWorld := world.New(256, 64)
+	cell.New(baseWorld, nil)
 
-	WorldLastTickTime = time.Now()
-	for {
-		myWorld.Handle()
-		// time.Sleep(WorldTickTime)
-
-		WorldFramerate = 1000000 / (time.Since(WorldLastTickTime).Microseconds() + 1)
-		if myWorld.Ticks%world.WorldTicksPerYear == 0 {
-			fmt.Printf("FPS: %d\nPopulation: %d\nYear: %d\n\n", WorldFramerate, len(myWorld.Objects), myWorld.Year)
-		}
-
+	go func() {
 		WorldLastTickTime = time.Now()
-	}
+		for {
+			baseWorld.Handle()
+			// time.Sleep(WorldTickInterval)
+
+			WorldFramerate = 1000000 / (time.Since(WorldLastTickTime).Microseconds() + 1)
+			if baseWorld.Ticks%world.WorldTicksPerYear == 0 {
+				fmt.Printf("FPS: %d\nPopulation: %d\nYear: %d\n\n", WorldFramerate, len(baseWorld.Objects), baseWorld.Year)
+			}
+
+			WorldLastTickTime = time.Now()
+		}
+	}()
+
+	gui.Run(UITickInterval, baseWorld)
 }

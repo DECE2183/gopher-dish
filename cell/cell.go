@@ -19,10 +19,10 @@ const (
 	BaseHealth              = 50
 	BaseEnergy              = 25
 	BaseWeight              = 5
-	BaseEnergyDecrement     = 2
-	BaseHealthDecrement     = 3
-	AgeInfluenceMultiplier  = 0.3
-	BaseReproduceEnergyCost = 35
+	BaseEnergyDecrement     = 3
+	BaseHealthDecrement     = 2
+	AgeInfluenceMultiplier  = 1.5
+	BaseReproduceEnergyCost = 30
 )
 
 // Registers list
@@ -99,9 +99,12 @@ func New(world *world.World, parent *Cell) *Cell {
 		c.Generation = parent.Generation + 1
 		c.Position = parent.Position
 		c.Genome = parent.Genome.Mutate()
+		if c.Energy > parent.Energy {
+			c.Energy = parent.Energy
+		}
 	} else {
 		c.Position = world.GetCenter()
-		c.Position.Y /= 2
+		c.Position.Y /= 6
 		c.Genome = CreateBaseGenome()
 	}
 
@@ -319,11 +322,15 @@ func (c Cell) IncreaseEnergy(energy byte) bool {
 	return true
 }
 func (c Cell) Reproduce() bool {
-	c.SpendEnergy(BaseReproduceEnergyCost)
+	if c.Energy <= BaseReproduceEnergyCost/2 {
+		c.SpendEnergy(BaseReproduceEnergyCost)
+		return false
+	}
 	newCell := New(c.World, &c)
 	if newCell == nil {
 		return false
 	}
+	c.SpendEnergy(BaseReproduceEnergyCost)
 	return true
 }
 func (c Cell) Die() bool {

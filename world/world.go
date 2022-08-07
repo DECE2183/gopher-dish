@@ -12,7 +12,7 @@ const (
 	WorldYearsPerEpoch = 100
 
 	WorldSunlightMultiplier = 1.0
-	WorldSunlightBeginValue = 25.0
+	WorldSunlightBeginValue = 9.0
 	WorldSunlightEndValue   = 0.0
 	WorldSunlightBeginPos   = 0.0
 	WorldSunlightEndPos     = 0.6
@@ -51,7 +51,8 @@ type World struct {
 	Objects          map[uint64]object.Movable
 	ObjectsIdCounter uint64
 
-	Places [][]object.Movable
+	Places        [][]object.Movable
+	PlacesUpdated chan bool
 
 	state           uint
 	objectsToRemove chan uint64
@@ -66,7 +67,7 @@ func New(width, height uint32) *World {
 	for i := 0; i < int(w.Width); i++ {
 		w.Places[i] = make([]object.Movable, w.Height)
 	}
-
+	w.PlacesUpdated = make(chan bool)
 	w.Objects = make(map[uint64]object.Movable)
 
 	w.calculateSunlight()
@@ -243,6 +244,8 @@ func (w *World) Handle() {
 	for id := range w.objectsToRemove {
 		w.removeObject(id)
 	}
+
+	w.PlacesUpdated <- true
 }
 
 func (w *World) calculateSunlight() {
