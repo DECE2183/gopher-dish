@@ -49,6 +49,12 @@ func initGUI() {
 	wd.IncZoom(DefaultZoomValue, pixel.V(0, 0))
 	wd.Move(win.Bounds().Center())
 
+	btnPlay := widgets.NewButton("play", pixel.V(5, 29), pixel.V(60, 30))
+	btnStop := widgets.NewButton("stop", pixel.V(70, 29), pixel.V(60, 30))
+	btnNormal := widgets.NewButton("normal", pixel.V(150, 29), pixel.V(60, 30))
+	btnEnergy := widgets.NewButton("energy", pixel.V(215, 29), pixel.V(60, 30))
+	btnAge := widgets.NewButton("age", pixel.V(280, 29), pixel.V(60, 30))
+
 	textAtlas = text.NewAtlas(basicfont.Face7x13, text.ASCII, text.RangeTable(unicode.Latin))
 	statusText := text.New(pixel.V(12, 8), textAtlas)
 
@@ -80,20 +86,20 @@ func initGUI() {
 		statusPanelBg.Draw(win)
 		statusText.Draw(win, pixel.IM)
 
-		if widgets.Button(win, "play", pixel.V(5, 29), pixel.V(60, 30), win.MousePosition(), win.Pressed(pixelgl.MouseButtonLeft)) {
+		if btnPlay.Draw(win) {
 			wd.world.TickInterval = 15 * time.Millisecond
 		}
-		if widgets.Button(win, "stop", pixel.V(70, 29), pixel.V(60, 30), win.MousePosition(), win.Pressed(pixelgl.MouseButtonLeft)) {
+		if btnStop.Draw(win) {
 			wd.world.TickInterval = 0
 		}
 
-		if widgets.Button(win, "normal", pixel.V(150, 29), pixel.V(60, 30), win.MousePosition(), win.Pressed(pixelgl.MouseButtonLeft)) {
+		if btnNormal.Draw(win) {
 			wd.Filter = W_FILTER_DISABLE
 		}
-		if widgets.Button(win, "energy", pixel.V(215, 29), pixel.V(60, 30), win.MousePosition(), win.Pressed(pixelgl.MouseButtonLeft)) {
+		if btnEnergy.Draw(win) {
 			wd.Filter = W_FILTER_ENERGY
 		}
-		if widgets.Button(win, "age", pixel.V(280, 29), pixel.V(60, 30), win.MousePosition(), win.Pressed(pixelgl.MouseButtonLeft)) {
+		if btnAge.Draw(win) {
 			wd.Filter = W_FILTER_AGE
 		}
 
