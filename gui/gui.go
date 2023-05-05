@@ -5,7 +5,7 @@ import (
 	"time"
 	"unicode"
 
-	"gopher-dish/object"
+	"gopher-dish/gui/widgets"
 	"gopher-dish/world"
 
 	"github.com/faiface/pixel"
@@ -15,16 +15,6 @@ import (
 	"golang.org/x/image/colornames"
 	"golang.org/x/image/font/basicfont"
 )
-
-type WorldDrawer struct {
-	world         *world.World
-	canvas        *pixelgl.Canvas
-	baseDrawer    *imdraw.IMDraw
-	objectsDrawer *imdraw.IMDraw
-	matrix        pixel.Matrix
-	bounds        pixel.Rect
-	zoom          float64
-}
 
 var (
 	updateTimerInterval time.Duration
@@ -89,6 +79,24 @@ func initGUI() {
 		printStatus(statusText, wd.world, win.Bounds().Max.X, 24)
 		statusPanelBg.Draw(win)
 		statusText.Draw(win, pixel.IM)
+
+		if widgets.Button(win, "play", pixel.V(5, 29), pixel.V(60, 30), win.MousePosition(), win.Pressed(pixelgl.MouseButtonLeft)) {
+			wd.world.TickInterval = 15 * time.Millisecond
+		}
+		if widgets.Button(win, "stop", pixel.V(70, 29), pixel.V(60, 30), win.MousePosition(), win.Pressed(pixelgl.MouseButtonLeft)) {
+			wd.world.TickInterval = 0
+		}
+
+		if widgets.Button(win, "normal", pixel.V(150, 29), pixel.V(60, 30), win.MousePosition(), win.Pressed(pixelgl.MouseButtonLeft)) {
+			wd.Filter = W_FILTER_DISABLE
+		}
+		if widgets.Button(win, "energy", pixel.V(215, 29), pixel.V(60, 30), win.MousePosition(), win.Pressed(pixelgl.MouseButtonLeft)) {
+			wd.Filter = W_FILTER_ENERGY
+		}
+		if widgets.Button(win, "age", pixel.V(280, 29), pixel.V(60, 30), win.MousePosition(), win.Pressed(pixelgl.MouseButtonLeft)) {
+			wd.Filter = W_FILTER_AGE
+		}
+
 		win.Update()
 	}
 }
@@ -109,103 +117,6 @@ func printStatus(txt *text.Text, world *world.World, width, height float64) {
 	}
 
 	txt.Clear()
-	txt.Color = pixel.RGB(0.73, 0.73, 0.73)
-	fmt.Fprintf(txt, "Population: % 8d | Day: % 8d | Year: % 8d | Epoch: % 8d", len(world.Objects), world.Ticks, world.Year, world.Epoch)
-}
-
-func NewWorldDrawer(world *world.World) *WorldDrawer {
-	wd := &WorldDrawer{
-		world:         world,
-		baseDrawer:    imdraw.New(nil),
-		objectsDrawer: imdraw.New(nil),
-		canvas:        pixelgl.NewCanvas(pixel.R(0, 0, float64(world.Width)*DefaultZoomValue, float64(world.Height)*DefaultZoomValue)),
-		matrix:        pixel.IM,
-	}
-	return wd
-}
-
-func (wd *WorldDrawer) Move(p pixel.Vec) {
-	wd.matrix = wd.matrix.Moved(p)
-}
-
-func (wd *WorldDrawer) IncZoom(level float64, vec pixel.Vec) {
-	wd.zoom += level
-	if wd.zoom < 1 {
-		wd.zoom = 1
-	} else if wd.zoom > 32 {
-		wd.zoom = 32
-	}
-
-	oldBoundsMax := wd.bounds.Max
-	wd.bounds.Max = pixel.Vec{X: float64(wd.world.Width) * wd.zoom, Y: float64(wd.world.Height) * wd.zoom}
-	wd.canvas.SetBounds(wd.bounds)
-	wd.DrawBase()
-
-	if vec.X != 0 && vec.Y != 0 {
-		if level > 0 {
-			wd.Move(vec.ScaledXY(pixel.V(wd.bounds.Max.X/oldBoundsMax.X, wd.bounds.Max.Y/oldBoundsMax.Y)).Scaled(0.25))
-		} else {
-			wd.Move(vec.ScaledXY(pixel.V(-oldBoundsMax.X/wd.bounds.Max.X, -oldBoundsMax.Y/wd.bounds.Max.Y)).Scaled(0.25))
-		}
-	}
-}
-
-func (wd *WorldDrawer) DrawBase() {
-	sunlightColor := pixel.RGB(1, 0.83, 0.3)
-	mineralsColor := pixel.RGB(0.3, 0.74, 1)
-
-	wd.baseDrawer.Clear()
-
-	for x := int32(0); x < int32(wd.world.Width); x++ {
-		for y := int32(0); y < int32(wd.world.Height); y++ {
-			sunlight := wd.world.GetSunlightAtPosition(object.Position{x, y})
-			minerals := wd.world.GetMineralsAtPosition(object.Position{x, y})
-
-			pixelColor := sunlightColor.Mul(pixel.Alpha(float64(sunlight) / 85))
-			pixelColor = pixelColor.Add(mineralsColor.Mul(pixel.Alpha(float64(minerals) / 85)))
-
-			wd.baseDrawer.Color = pixelColor
-
-			var posX, posY = float64(x) * wd.zoom, wd.bounds.Max.Y - float64(y)*wd.zoom
-			wd.baseDrawer.Push(pixel.V(posX, posY), pixel.V(posX+wd.zoom, posY-wd.zoom))
-			wd.baseDrawer.Rectangle(0)
-		}
-	}
-}
-
-func (wd *WorldDrawer) DrawObjects() {
-	// if <-wd.world.PlacesUpdated != true {
-	// 	return
-	// }
-
-	wd.objectsDrawer.Clear()
-
-	for x := 0; x < int(wd.world.Width); x++ {
-		for y := 0; y < int(wd.world.Height); y++ {
-			if wd.world.Places[x][y] == nil {
-				continue
-			}
-
-			var posX, posY = float64(x) * wd.zoom, wd.bounds.Max.Y - float64(y)*wd.zoom
-			wd.objectsDrawer.EndShape = imdraw.NoEndShape
-
-			wd.objectsDrawer.Color = colornames.Black
-			wd.objectsDrawer.Push(pixel.V(posX, posY), pixel.V(posX+wd.zoom, posY-wd.zoom))
-			wd.objectsDrawer.Rectangle(1)
-
-			wd.objectsDrawer.Color = colornames.Green
-			wd.objectsDrawer.Push(pixel.V(posX, posY-1), pixel.V(posX+wd.zoom-1, posY-wd.zoom))
-			wd.objectsDrawer.Rectangle(0)
-		}
-	}
-
-	// wd.world.PlacesDrawn <- true
-}
-
-func (wd *WorldDrawer) Draw(t pixel.Target) {
-	wd.canvas.Clear(colornames.White)
-	wd.baseDrawer.Draw(wd.canvas)
-	wd.DrawObjects()
-	wd.objectsDrawer.Draw(wd.canvas)
-	wd.canvas.Draw(t, wd.matrix)
+	txt.Color = pixel.RGB(0.53, 0.53, 0.53)
+	fmt.Fprintf(txt, "FPS: % 3d | Population: % 8d | Day: % 8d | Year: % 8d | Epoch: % 8d", world.Framerate, len(world.Objects), world.Ticks, world.Year, world.Epoch)
 }

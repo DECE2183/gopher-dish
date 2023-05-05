@@ -5,6 +5,7 @@ import (
 	"math"
 	"runtime"
 	"sync"
+	"time"
 )
 
 const (
@@ -41,6 +42,9 @@ func remap[T number](value, inMin, inMax, outMin, outMax T) T {
 type World struct {
 	Width, Height uint32
 
+	TickInterval time.Duration
+	Framerate    uint
+
 	Ticks uint64
 	Year  uint64
 	Epoch uint64
@@ -52,24 +56,23 @@ type World struct {
 	ObjectsIdCounter uint64
 
 	Places        [][]object.Movable
-	PlacesUpdated chan bool
-	PlacesDrawn   chan bool
+	PlacesDrawMux sync.Mutex
 
 	state           uint
 	objectsToRemove chan uint64
 	chunkCount      int
 	objPerChunk     int
+
+	lastTickTime time.Time
 }
 
-func New(width, height uint32) *World {
-	w := &World{Width: width, Height: height}
+func New(width, height uint32, tickInterval time.Duration) *World {
+	w := &World{Width: width, Height: height, TickInterval: tickInterval}
 
 	w.Places = make([][]object.Movable, w.Width)
 	for i := 0; i < int(w.Width); i++ {
 		w.Places[i] = make([]object.Movable, w.Height)
 	}
-	w.PlacesUpdated = make(chan bool)
-	w.PlacesDrawn = make(chan bool)
 	w.Objects = make(map[uint64]object.Movable)
 
 	w.calculateSunlight()
@@ -200,7 +203,13 @@ func (w *World) GetMineralsAtPosition(pos object.Position) byte {
 }
 
 func (w *World) Handle() {
+	if w.TickInterval == 0 {
+		time.Sleep(25 * time.Millisecond)
+		return
+	}
+
 	var yearChanged, epochChanged bool
+	w.PlacesDrawMux.Lock()
 
 	w.Ticks++
 	if w.Ticks%WorldTicksPerYear == 0 {
@@ -218,15 +227,6 @@ func (w *World) Handle() {
 		o.Prepare()
 	}
 
-	// objIndex := 0
-	// for chunk := 0; chunk < w.chunkCount; chunk++ {
-	// 	for ; objIndex < w.objPerChunk; objIndex++ {
-	// 		go func(o object.Movable) {
-
-	// 		}(w.Objects[uint64(objIndex)])
-	// 	}
-	// }
-
 	var wg sync.WaitGroup
 	wg.Add(len(w.Objects))
 	w.objectsToRemove = make(chan uint64, w.Width*w.Height)
@@ -237,8 +237,6 @@ func (w *World) Handle() {
 			obj.Handle(yearChanged, epochChanged)
 			wg.Done()
 		}(o)
-
-		// o.Handle(yearChanged, epochChanged)
 	}
 
 	wg.Wait()
@@ -248,8 +246,11 @@ func (w *World) Handle() {
 		w.removeObject(id)
 	}
 
-	// w.PlacesUpdated <- true
-	// <-w.PlacesDrawn
+	w.Framerate = uint(1000000 / (time.Since(w.lastTickTime).Microseconds() + 1))
+	w.lastTickTime = time.Now()
+
+	w.PlacesDrawMux.Unlock()
+	<-time.Tick(w.TickInterval)
 }
 
 func (w *World) calculateSunlight() {
