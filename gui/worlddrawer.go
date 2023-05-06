@@ -4,11 +4,16 @@ import (
 	"gopher-dish/object"
 	"gopher-dish/world"
 	"image/color"
+	"math"
 
 	"github.com/faiface/pixel"
 	"github.com/faiface/pixel/imdraw"
 	"github.com/faiface/pixel/pixelgl"
 	"golang.org/x/image/colornames"
+)
+
+const (
+	DefaultZoomValue = 2
 )
 
 var (
@@ -57,7 +62,9 @@ func NewWorldDrawer(world *world.World) *WorldDrawer {
 		objectsDrawer: imdraw.New(nil),
 		canvas:        pixelgl.NewCanvas(pixel.R(0, 0, float64(world.Width)*DefaultZoomValue, float64(world.Height)*DefaultZoomValue)),
 		matrix:        pixel.IM,
+		zoom:          DefaultZoomValue,
 	}
+	wd.IncZoom(DefaultZoomValue, pixel.V(0, 0))
 	return wd
 }
 
@@ -66,6 +73,7 @@ func (wd *WorldDrawer) Move(p pixel.Vec) {
 }
 
 func (wd *WorldDrawer) IncZoom(level float64, vec pixel.Vec) {
+	level = math.Round(level)
 	wd.zoom += level
 	if wd.zoom < 1 {
 		wd.zoom = 1
@@ -74,7 +82,7 @@ func (wd *WorldDrawer) IncZoom(level float64, vec pixel.Vec) {
 	}
 
 	oldBoundsMax := wd.bounds.Max
-	wd.bounds.Max = pixel.Vec{X: float64(wd.world.Width-1) * wd.zoom, Y: float64(wd.world.Height-1) * wd.zoom}
+	wd.bounds.Max = pixel.V(float64(wd.world.Width-1)*wd.zoom, float64(wd.world.Height-1)*wd.zoom)
 	wd.canvas.SetBounds(wd.bounds)
 	wd.DrawBase()
 

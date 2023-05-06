@@ -42,8 +42,8 @@ func remap[T number](value, inMin, inMax, outMin, outMax T) T {
 type World struct {
 	Width, Height uint32
 
-	TickInterval time.Duration
-	Framerate    uint
+	Paused    bool
+	Framerate uint
 
 	Ticks uint64
 	Year  uint64
@@ -58,6 +58,7 @@ type World struct {
 	Places        [][]object.Movable
 	PlacesDrawMux sync.Mutex
 
+	ticker          *time.Ticker
 	state           uint
 	objectsToRemove chan uint64
 	chunkCount      int
@@ -67,7 +68,9 @@ type World struct {
 }
 
 func New(width, height uint32, tickInterval time.Duration) *World {
-	w := &World{Width: width, Height: height, TickInterval: tickInterval}
+	w := &World{Width: width, Height: height}
+
+	w.ticker = time.NewTicker(tickInterval)
 
 	w.Places = make([][]object.Movable, w.Width)
 	for i := 0; i < int(w.Width); i++ {
@@ -202,9 +205,16 @@ func (w *World) GetMineralsAtPosition(pos object.Position) byte {
 	return w.Minerals[pos.X][pos.Y]
 }
 
+func (w *World) SetTickPeriod(t time.Duration) {
+	if t > 0 {
+		w.ticker.Reset(t)
+	}
+}
+
 func (w *World) Handle() {
-	if w.TickInterval == 0 {
-		time.Sleep(25 * time.Millisecond)
+	if w.Paused {
+		time.Sleep(100 * time.Millisecond)
+		w.lastTickTime = time.Now()
 		return
 	}
 
@@ -246,11 +256,11 @@ func (w *World) Handle() {
 		w.removeObject(id)
 	}
 
+	w.PlacesDrawMux.Unlock()
+
 	w.Framerate = uint(1000000 / (time.Since(w.lastTickTime).Microseconds() + 1))
 	w.lastTickTime = time.Now()
-
-	w.PlacesDrawMux.Unlock()
-	<-time.Tick(w.TickInterval)
+	<-w.ticker.C
 }
 
 func (w *World) calculateSunlight() {

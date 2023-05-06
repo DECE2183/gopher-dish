@@ -17,19 +17,14 @@ import (
 )
 
 var (
-	updateTimerInterval time.Duration
-	worldToDraw         *world.World
-	textAtlas           *text.Atlas
-)
-
-const (
-	DefaultZoomValue = 5
+	ticker      *time.Ticker
+	worldToDraw *world.World
+	textAtlas   *text.Atlas
 )
 
 func Run(updateInterval time.Duration, world *world.World) {
-	updateTimerInterval = updateInterval
+	ticker = time.NewTicker(updateInterval)
 	worldToDraw = world
-
 	pixelgl.Run(initGUI)
 }
 
@@ -46,7 +41,6 @@ func initGUI() {
 	}
 
 	wd := NewWorldDrawer(worldToDraw)
-	wd.IncZoom(DefaultZoomValue, pixel.V(0, 0))
 	wd.Move(win.Bounds().Center())
 
 	btnPlay := widgets.NewButton("play", pixel.V(5, 29), pixel.V(60, 30))
@@ -56,7 +50,7 @@ func initGUI() {
 	btnAge := widgets.NewButton("age", pixel.V(280, 29), pixel.V(60, 30))
 
 	textAtlas = text.NewAtlas(basicfont.Face7x13, text.ASCII, text.RangeTable(unicode.Latin))
-	statusText := text.New(pixel.V(12, 8), textAtlas)
+	statusText := text.New(pixel.V(0, 0), textAtlas)
 
 	statusPanelBg := imdraw.New(nil)
 	createStatusBar(statusPanelBg, win.Bounds().Max.X, 24)
@@ -87,10 +81,10 @@ func initGUI() {
 		statusText.Draw(win, pixel.IM)
 
 		if btnPlay.Draw(win) {
-			wd.world.TickInterval = 15 * time.Millisecond
+			wd.world.Paused = false
 		}
 		if btnStop.Draw(win) {
-			wd.world.TickInterval = 0
+			wd.world.Paused = true
 		}
 
 		if btnNormal.Draw(win) {
@@ -104,6 +98,7 @@ func initGUI() {
 		}
 
 		win.Update()
+		<-ticker.C
 	}
 }
 
@@ -124,5 +119,6 @@ func printStatus(txt *text.Text, world *world.World, width, height float64) {
 
 	txt.Clear()
 	txt.Color = pixel.RGB(0.53, 0.53, 0.53)
-	fmt.Fprintf(txt, "FPS: % 3d | Population: % 8d | Day: % 8d | Year: % 8d | Epoch: % 8d", world.Framerate, len(world.Objects), world.Ticks, world.Year, world.Epoch)
+	txt.Dot = pixel.V(height/2, height/2-txt.BoundsOf("A").H()/4).Floor()
+	fmt.Fprintf(txt, "FPS: % 5d | Population: % 8d | Day: % 8d | Year: % 8d | Epoch: % 8d", world.Framerate, len(world.Objects), world.Ticks, world.Year, world.Epoch)
 }

@@ -9,14 +9,14 @@ import (
 )
 
 const (
-	WorldTickInterval = 15 * time.Millisecond
-	UITickInterval    = 15 * time.Millisecond
+	WorldTickInterval = 16 * time.Millisecond
+	UITickInterval    = 33 * time.Millisecond
 )
 
 func main() {
 	rand.Seed(time.Now().UnixNano())
 
-	baseWorld := world.New(256, 128, WorldTickInterval)
+	baseWorld := world.New(348, 128, WorldTickInterval)
 	cell.New(baseWorld, nil)
 
 	go func() {
