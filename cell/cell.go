@@ -20,8 +20,8 @@ const (
 	BaseEnergy              = 25
 	BaseWeight              = 5
 	BaseEnergyDecrement     = 3
-	BaseHealthDecrement     = 2
-	AgeInfluenceMultiplier  = 1.5
+	BaseHealthDecrement     = 5
+	AgeInfluenceMultiplier  = 2.5
 	BaseReproduceEnergyCost = 30
 )
 
