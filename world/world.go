@@ -13,7 +13,7 @@ const (
 	WorldYearsPerEpoch = 100
 
 	WorldSunlightMultiplier = 1.0
-	WorldSunlightBeginValue = 9.0
+	WorldSunlightBeginValue = 11.0
 	WorldSunlightEndValue   = 0.0
 	WorldSunlightBeginPos   = 0.0
 	WorldSunlightEndPos     = 0.6
@@ -255,9 +255,11 @@ func (w *World) Handle() {
 
 	wg.Wait()
 	close(w.objectsToRemove)
+	removedObjects := 0
 
 	for id := range w.objectsToRemove {
 		w.removeObject(id)
+		removedObjects++
 	}
 
 	w.PlacesDrawMux.Unlock()

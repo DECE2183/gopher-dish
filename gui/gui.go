@@ -34,7 +34,7 @@ func Run(updateInterval time.Duration, world *world.World) {
 func initGUI() {
 	cfg := pixelgl.WindowConfig{
 		Title:     "gopher-dish",
-		Bounds:    pixel.R(0, 0, 1024, 480),
+		Bounds:    pixel.R(0, 0, 1536, 740),
 		Resizable: true,
 	}
 

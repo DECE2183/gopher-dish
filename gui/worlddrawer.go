@@ -22,6 +22,7 @@ var (
 	colorMinerals = pixel.RGB(0.3, 0.74, 1)
 
 	colorObjectLively = pixel.RGB(0.38, 0.58, 0.27)
+	colorObjectDied   = pixel.RGB(112.0/255.0, 51.0/255.0, 13.0/255.0)
 
 	colorObjectEnergyMax = pixel.RGB(1, 0.91, 0)
 	colorObjectEnergyMin = pixel.RGB(1, 0, 0)
@@ -123,6 +124,9 @@ func (wd *WorldDrawer) ComputeObjectColor(obj object.Object) color.Color {
 	var _obj interface{} = obj
 	switch o := _obj.(type) {
 	case object.Lively:
+		if o.IsDied() {
+			return colorObjectDied
+		}
 		switch wd.Filter {
 		case W_FILTER_DISABLE:
 			return colorObjectLively

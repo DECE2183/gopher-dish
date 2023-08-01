@@ -17,13 +17,13 @@ const (
 )
 
 const (
-	BaseHealth              = 50
-	BaseEnergy              = 25
+	BaseHealth              = 60
+	BaseEnergy              = 28
 	BaseWeight              = 5
 	BaseEnergyDecrement     = 3
 	BaseHealthDecrement     = 5
-	AgeInfluenceMultiplier  = 2.5
-	BaseReproduceEnergyCost = 30
+	AgeInfluenceMultiplier  = 2.8
+	BaseReproduceEnergyCost = 32
 )
 
 // Registers list
@@ -119,204 +119,158 @@ func New(w *world.World, parent *Cell) *Cell {
 }
 
 // Object interface
-func (c Cell) GetID() uint64 {
+func (c *Cell) GetID() uint64 {
 	return c.Name
 }
-func (c Cell) GetInstance() object.Object {
-	return c.World.GetObject(c.Name)
-}
-func (c Cell) Prepare() {
+func (c *Cell) Prepare() {
 	if c.Died {
 		return
-	}
-
-	self, success := c.GetInstance().(*Cell)
-	if !success {
+	} else if c.Health <= 0 {
+		c.Die()
 		return
 	}
 
-	self.executeCommand(self.currentCommad())
+	c.executeCommand(c.currentCommad())
 }
-func (c Cell) Handle(yearChanged, epochChanged bool) {
+func (c *Cell) Handle(yearChanged, epochChanged bool) {
 	if c.Died {
 		return
-	}
-
-	self, success := c.GetInstance().(*Cell)
-	if !success {
+	} else if c.Health <= 0 {
+		c.Die()
 		return
 	}
 
-	for i := 0; i < GenomeLength && !self.handleCommand(self.currentCommad()); i++ {
-		self.SpendEnergy(BaseEnergyDecrement)
+	for i := 0; i < GenomeLength && !c.handleCommand(c.currentCommad()); i++ {
+		c.SpendEnergy(BaseEnergyDecrement)
 	}
 
 	if yearChanged {
-		self.Age++
+		c.Age++
 	}
 }
 
 // Pickable interface
-func (c Cell) GetWeight() byte {
+func (c *Cell) GetWeight() byte {
 	return c.Weight
 }
-func (c Cell) PickUp() bool {
+func (c *Cell) PickUp() bool {
 	if c.Health == 0 && !c.Picked {
 		c.Picked = true
 		return true
 	}
+
 	return false
 }
-func (c Cell) Drop() {
+func (c *Cell) Drop() {
 	c.Picked = false
 }
 
 // Movable interface
-func (c Cell) GetPosition() object.Position {
+func (c *Cell) GetPosition() object.Position {
 	return c.Position
 }
-func (c Cell) GetRotation() object.Rotation {
+func (c *Cell) GetRotation() object.Rotation {
 	return c.Rotation
 }
-func (c Cell) MoveForward() bool {
+func (c *Cell) MoveForward() bool {
 	return c.MoveInDirection(c.Rotation)
 }
-func (c Cell) MoveBackward() bool {
+func (c *Cell) MoveBackward() bool {
 	return c.MoveInDirection(c.Rotation.Rotate(180))
 }
-func (c Cell) MoveLeft() bool {
+func (c *Cell) MoveLeft() bool {
 	return c.MoveInDirection(c.Rotation.Rotate(90))
 }
-func (c Cell) MoveRight() bool {
+func (c *Cell) MoveRight() bool {
 	return c.MoveInDirection(c.Rotation.Rotate(270))
 }
-func (c Cell) MoveToPosition(pos object.Position) bool {
-	self, success := c.GetInstance().(*Cell)
-	if !success {
-		return false
-	}
-
-	self.Position = pos
+func (c *Cell) MoveToPosition(pos object.Position) bool {
+	c.Position = pos
 	return true
 }
-func (c Cell) MoveInDirection(rot object.Rotation) bool {
-	self, success := c.GetInstance().(*Cell)
-	if !success {
-		return false
-	}
-
-	self.SpendEnergy(self.Weight)
-	return self.World.MoveObject(self, self.getRelPos(rot))
+func (c *Cell) MoveInDirection(rot object.Rotation) bool {
+	c.SpendEnergy(c.Weight)
+	return c.World.MoveObject(c, c.getRelPos(rot))
 }
-func (c Cell) Rotate(rot object.Rotation) bool {
-	self, success := c.GetInstance().(*Cell)
-	if !success {
-		return false
-	}
-
-	self.Rotation.Degree = int32(math.Round(float64(self.Rotation.Rotate(rot.Degree).Degree)/45.0)) * 45
+func (c *Cell) Rotate(rot object.Rotation) bool {
+	c.Rotation.Degree = int32(math.Round(float64(c.Rotation.Rotate(rot.Degree).Degree)/45.0)) * 45
 	return true
 }
 
 // Lively interface
-func (c Cell) GetAge() uint32 {
+func (c *Cell) GetAge() uint32 {
 	return c.Age
 }
-func (c Cell) GetHealth() byte {
+func (c *Cell) GetHealth() byte {
 	return c.Health
 }
-func (c Cell) GetEnergy() byte {
+func (c *Cell) GetEnergy() byte {
 	return c.Energy
 }
-func (c Cell) IsDied() bool {
+func (c *Cell) IsDied() bool {
 	return c.Died
 }
-func (c Cell) LoseHealth(health byte) bool {
+func (c *Cell) LoseHealth(health byte) bool {
 	if c.Died {
 		return false
 	}
-
-	self, success := c.GetInstance().(*Cell)
-	if !success {
-		return false
-	}
-
-	if health < self.Health {
-		self.Health -= health
+	if health < c.Health {
+		c.Health -= health
 	} else {
-		self.Die()
+		c.Die()
 	}
 
 	return true
 }
-func (c Cell) SpendEnergy(energy byte) bool {
-	self, success := c.GetInstance().(*Cell)
-	if !success {
-		return false
-	}
-
-	if self.Energy > 0 {
+func (c *Cell) SpendEnergy(energy byte) bool {
+	if c.Energy > 0 {
 		// Decrement energy
-		energyDec := byte(math.Round(float64(energy) + float64(self.Age)*AgeInfluenceMultiplier))
-		if energyDec < self.Energy {
-			self.Energy -= energyDec
+		energyDec := byte(math.Round(float64(energy) + float64(c.Age)*AgeInfluenceMultiplier))
+		if energyDec < c.Energy {
+			c.Energy -= energyDec
 		} else {
-			self.Energy = 0
+			c.Energy = 0
 		}
 	} else {
 		// If there is no energy then decrement health
-		healthDec := byte(math.Round(BaseHealthDecrement * float64(self.Age) * AgeInfluenceMultiplier))
-		self.LoseHealth(healthDec)
+		healthDec := byte(math.Round(BaseHealthDecrement * float64(c.Age) * AgeInfluenceMultiplier))
+		c.LoseHealth(healthDec)
 	}
 
 	return true
 }
-func (c Cell) HealHealth(health byte) bool {
+func (c *Cell) HealHealth(health byte) bool {
 	if c.Died {
 		return false
 	}
 
-	self, success := c.GetInstance().(*Cell)
-	if !success {
-		return false
-	}
-
-	self.Health += health
+	c.Health += health
 	return true
 }
-func (c Cell) IncreaseEnergy(energy byte) bool {
+func (c *Cell) IncreaseEnergy(energy byte) bool {
 	if c.Died {
 		return false
 	}
 
-	self, success := c.GetInstance().(*Cell)
-	if !success {
-		return false
-	}
-
-	self.Energy += energy
+	c.Energy += energy
 	return true
 }
-func (c Cell) Reproduce() bool {
+func (c *Cell) Reproduce() bool {
 	if c.Energy <= BaseReproduceEnergyCost/2 {
 		c.SpendEnergy(BaseReproduceEnergyCost)
 		return false
 	}
-	newCell := New(c.World, &c)
+	newCell := New(c.World, c)
 	if newCell == nil {
 		return false
 	}
 	c.SpendEnergy(BaseReproduceEnergyCost)
 	return true
 }
-func (c Cell) Die() bool {
-	self, success := c.GetInstance().(*Cell)
-	if !success {
-		return false
-	}
-	self.Health = 0
-	self.Died = true
-	self.World.RemoveObject(self.Name)
+func (c *Cell) Die() bool {
+	c.Health = 0
+	c.Died = true
+	c.World.RemoveObject(c.Name)
 	return true
 }
 
@@ -326,6 +280,7 @@ func (c *Cell) incCounter() uint64 {
 	if c.Brain.CommandCounter >= GenomeLength {
 		c.Brain.CommandCounter = 0
 	}
+	c.LoseHealth(BaseEnergyDecrement / 2)
 	return c.Brain.CommandCounter
 }
 
