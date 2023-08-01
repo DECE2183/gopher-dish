@@ -205,6 +205,10 @@ func (w *World) GetMineralsAtPosition(pos object.Position) byte {
 	return w.Minerals[pos.X][pos.Y]
 }
 
+func (w *World) GetObjectAtPosition(pos object.Position) object.Movable {
+	return w.Places[pos.X][pos.Y]
+}
+
 func (w *World) SetTickPeriod(t time.Duration) {
 	if t > 0 {
 		w.ticker.Reset(t)

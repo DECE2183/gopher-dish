@@ -21,37 +21,38 @@ const (
 	// No operation command
 	CMD_NOP = iota
 	// Branch commands
-	CMD_CMP  // +
-	CMD_JMP  // +
-	CMD_DIVE // +
-	CMD_LIFT // +
+	CMD_CMP  // + compare
+	CMD_JMP  // + jump
+	CMD_DIVE // + dive into function
+	CMD_LIFT // + lift from function
 	// Memory commands
-	CMD_PUT  // +
-	CMD_SAVE // +
-	CMD_LOAD // +
+	CMD_PUT  // + put const to mem
+	CMD_SAVE // + put reg value to mem
+	CMD_LOAD // + load mem value to reg
 	// Math commands
 	CMD_ADD // +
 	CMD_SUB // +
 	CMD_MUL // +
 	CMD_DIV // +
 	// Application commands
-	CMD_MOVE   // +
-	CMD_ROTATE // +
-	CMD_CHECKPOS
+	CMD_MOVE     // + move self cell
+	CMD_ROTATE   // + rotate self cell
+	CMD_CHECKPOS // + get type of object at near position
 	CMD_BITE
-	CMD_RECYCLE   // +
-	CMD_REPRODUCE // +
+	CMD_RECYCLE   // + recycle something to energy
+	CMD_REPRODUCE // + reproduce
 	// Bagage commands
-	CMD_PICKUP
-	CMD_DROP
-	CMD_BAGAGESIZE
-	CMD_BAGAGESLOTENERGY
-	CMD_SLOTOBJECTTYPE
+	CMD_PICKUP    // - pickup something
+	CMD_DROP      // - drop selected item from bag
+	CMD_BAGSIZE   // - count items in bag
+	CMD_BAGACTIVE // - set active item in bag
+	CMD_BAGENERGY // - get ebergy of selected item in bag
+	CMD_BAGCHECK  // - get type of selected item in bag
 	// Stats commands
-	CMD_GETAGE     // +
-	CMD_GETHEALTH  // +
-	CMD_GETENERGY  // +
-	CMD_GETCOUNTER // +
+	CMD_GETAGE     // + get self age
+	CMD_GETHEALTH  // + get self health
+	CMD_GETENERGY  // + get self energy
+	CMD_GETCOUNTER // + get current command counter
 
 	CMD_ENUM_SIZE
 )
@@ -60,25 +61,27 @@ const (
 const (
 	CND_NONE = iota
 
-	CND_EQ    = 1 << 0
-	CND_NEQ   = 1 << 1
-	CND_LESS  = 1 << 2
-	CND_GREAT = 1 << 3
+	CND_EQ    = 1 << iota
+	CND_NEQ   = 1 << iota
+	CND_LESS  = 1 << iota
+	CND_GREAT = 1 << iota
 
-	CND_SUCCESS = 1 << 6
-	CND_FAIL    = 1 << 7
+	CND_SUCCESS = 1 << iota
+	CND_FAIL    = 1 << iota
 
 	CND_ENUM_SIZE = 256
 )
 
 // Object types list
 const (
-	CND_WALL = iota
-	CND_BODY
-	CND_DEAD
+	OBJ_EMPTY = iota
 
-	CND_RELATED
-	CND_UNRELATED
+	OBJ_WALL
+	OBJ_BODY
+	OBJ_DEAD
+
+	OBJ_RELATED
+	OBJ_UNRELATED
 )
 
 // Recycle targets list
@@ -241,7 +244,7 @@ var commandMap = map[Command]CommandDescriptor{
 	// Relative move command
 	CMD_MOVE: {func(c *Cell) {
 		dirReg := truncCmd(c.Genome.Code[c.incCounter()], RegistersCount)
-		dir := (dirReg % 8) * 45
+		dir := (c.Brain.Registers[dirReg] % 8) * 45
 
 		moveSuc := c.MoveInDirection(object.Rotation{Degree: int32(dir)})
 
@@ -255,7 +258,7 @@ var commandMap = map[Command]CommandDescriptor{
 	// Relative rotation  command
 	CMD_ROTATE: {func(c *Cell) {
 		dirReg := truncCmd(c.Genome.Code[c.incCounter()], RegistersCount)
-		dir := (dirReg % 8) * 45
+		dir := (c.Brain.Registers[dirReg] % 8) * 45
 
 		rotSuc := c.Rotate(object.Rotation{Degree: int32(dir)})
 
@@ -266,6 +269,35 @@ var commandMap = map[Command]CommandDescriptor{
 		}
 		c.incCounter()
 	}, false},
+	// Check what is located at near cell
+	CMD_CHECKPOS: {func(c *Cell) {
+		dest := truncCmd(c.Genome.Code[c.incCounter()], RegistersCount)
+		dirReg := truncCmd(c.Genome.Code[c.incCounter()], RegistersCount)
+		dir := (c.Brain.Registers[dirReg] % 8) * 45
+
+		pos := c.getRelPos(object.Rotation{Degree: int32(dir)})
+		if pos.Y < 0 || pos.Y >= int32(c.World.Height) {
+			c.Brain.Registers[dest] = OBJ_WALL
+			c.incCounter()
+			return
+		}
+
+		o := c.World.GetObjectAtPosition(pos)
+		if o == nil {
+			c.Brain.Registers[dest] = OBJ_EMPTY
+		} else {
+			switch v := o.(type) {
+			case object.Lively:
+				if v.IsDied() {
+					c.Brain.Registers[dest] = OBJ_DEAD
+				} else {
+					c.Brain.Registers[dest] = OBJ_BODY
+				}
+			}
+		}
+
+		c.incCounter()
+	}, true},
 	// Recycle stuff to energy
 	CMD_RECYCLE: {func(c *Cell) {
 		recycleType := truncCmd(c.Genome.Code[c.incCounter()], RCL_ENUM_SIZE)

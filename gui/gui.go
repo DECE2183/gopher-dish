@@ -2,11 +2,14 @@ package gui
 
 import (
 	"fmt"
+	"os"
 	"time"
 	"unicode"
 
+	"gopher-dish/gui/filepicker"
 	"gopher-dish/gui/widgets"
 	"gopher-dish/world"
+	"gopher-dish/world/worldsaver"
 
 	"github.com/faiface/pixel"
 	"github.com/faiface/pixel/imdraw"
@@ -45,9 +48,12 @@ func initGUI() {
 
 	btnPlay := widgets.NewButton("play", pixel.V(5, 29), pixel.V(60, 30))
 	btnStop := widgets.NewButton("stop", pixel.V(70, 29), pixel.V(60, 30))
+
 	btnNormal := widgets.NewButton("normal", pixel.V(150, 29), pixel.V(60, 30))
 	btnEnergy := widgets.NewButton("energy", pixel.V(215, 29), pixel.V(60, 30))
 	btnAge := widgets.NewButton("age", pixel.V(280, 29), pixel.V(60, 30))
+
+	btnSave := widgets.NewButton("save", pixel.V(360, 29), pixel.V(60, 30))
 
 	textAtlas = text.NewAtlas(basicfont.Face7x13, text.ASCII, text.RangeTable(unicode.Latin))
 	statusText := text.New(pixel.V(0, 0), textAtlas)
@@ -97,6 +103,12 @@ func initGUI() {
 			wd.Filter = W_FILTER_AGE
 		}
 
+		if btnSave.Draw(win) {
+			wd.world.Paused = true
+			saveWorld(wd.world)
+			wd.world.Paused = false
+		}
+
 		win.Update()
 		<-ticker.C
 	}
@@ -121,4 +133,18 @@ func printStatus(txt *text.Text, world *world.World, width, height float64) {
 	txt.Color = pixel.RGB(0.53, 0.53, 0.53)
 	txt.Dot = pixel.V(height/2, height/2-txt.BoundsOf("A").H()/4).Floor()
 	fmt.Fprintf(txt, "FPS: % 5d | Population: % 8d | Day: % 8d | Year: % 8d | Epoch: % 8d", world.Framerate, len(world.Objects), world.Ticks, world.Year, world.Epoch)
+}
+
+func saveWorld(w *world.World) {
+	filename := filepicker.SaveFile("Save world", "world.gdw")
+	if filename != "" {
+		f, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0755)
+		if err != nil {
+			fmt.Println("Error open file to save: ", err)
+			return
+		}
+		defer f.Close()
+		worldsaver.Save(w, f)
+		fmt.Println("World saved at: ", filename)
+	}
 }

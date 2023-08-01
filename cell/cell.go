@@ -13,6 +13,7 @@ const (
 	RegistersCount = 4
 	SensorsCount   = 4
 	RelatedDepth   = 6
+	BagageSize     = 4
 )
 
 const (
@@ -81,15 +82,15 @@ type Cell struct {
 	Brain      Brain
 	TriggerMap map[TriggerSource]*Sensor
 
-	Bagage []object.Pickable
+	Bagage [BagageSize]object.Pickable
 
 	World    *world.World
 	Position object.Position
 	Rotation object.Rotation
 }
 
-func New(world *world.World, parent *Cell) *Cell {
-	c := &Cell{Health: BaseHealth, Energy: BaseEnergy, Weight: BaseWeight, World: world}
+func New(w *world.World, parent *Cell) *Cell {
+	c := &Cell{Health: BaseHealth, Energy: BaseEnergy, Weight: BaseWeight, World: w}
 
 	if parent != nil {
 		for i := 0; i < RelatedDepth-1; i++ {
@@ -103,12 +104,12 @@ func New(world *world.World, parent *Cell) *Cell {
 			c.Energy = parent.Energy
 		}
 	} else {
-		c.Position = world.GetCenter()
+		c.Position = w.GetCenter()
 		c.Position.Y /= 6
 		c.Genome = CreateBaseGenome()
 	}
 
-	c.Name, c.Position = world.AddObject(c)
+	c.Name, c.Position = w.AddObject(c)
 
 	if c.Name > 0 {
 		return c
@@ -204,33 +205,8 @@ func (c Cell) MoveInDirection(rot object.Rotation) bool {
 		return false
 	}
 
-	newPos := self.Position
-
-	switch self.Rotation.Degree {
-	case 0:
-		newPos.X++
-	case 45:
-		newPos.X++
-		newPos.Y--
-	case 90:
-		newPos.Y--
-	case 135:
-		newPos.X--
-		newPos.Y--
-	case 180:
-		newPos.X--
-	case 225:
-		newPos.X--
-		newPos.Y++
-	case 270:
-		newPos.Y++
-	case 315:
-		newPos.X++
-		newPos.Y++
-	}
-
 	self.SpendEnergy(self.Weight)
-	return self.World.MoveObject(self, newPos)
+	return self.World.MoveObject(self, self.getRelPos(rot))
 }
 func (c Cell) Rotate(rot object.Rotation) bool {
 	self, success := c.GetInstance().(*Cell)
@@ -359,4 +335,32 @@ func (c *Cell) recycle(rType uint64) {
 		c.IncreaseEnergy(c.World.GetSunlightAtPosition(c.Position))
 	case RCL_BAGAGE:
 	}
+}
+
+func (c *Cell) getRelPos(rot object.Rotation) object.Position {
+	newPos := c.Position
+	switch c.Rotation.Degree {
+	case 0:
+		newPos.X++
+	case 45:
+		newPos.X++
+		newPos.Y--
+	case 90:
+		newPos.Y--
+	case 135:
+		newPos.X--
+		newPos.Y--
+	case 180:
+		newPos.X--
+	case 225:
+		newPos.X--
+		newPos.Y++
+	case 270:
+		newPos.Y++
+	case 315:
+		newPos.X++
+		newPos.Y++
+	}
+	newPos.X = newPos.X % int32(c.World.Width)
+	return newPos
 }
