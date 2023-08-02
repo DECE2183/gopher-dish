@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"gopher-dish/cell"
+	"gopher-dish/object"
 	"gopher-dish/world"
 	"io"
 	"time"
@@ -33,7 +34,7 @@ func Load(reader io.Reader) (w *world.World, err error) {
 		// fmt.Printf("load: %d/%d\r", i, int(desc.ObjectCount))
 
 		switch otype {
-		case _TYPE_CELL:
+		case object.TYPE_CELL:
 			var cdesc wCellDescriptor
 			err = binary.Read(reader, binary.LittleEndian, &cdesc)
 			if err != nil {

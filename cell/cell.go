@@ -3,7 +3,6 @@ package cell
 import (
 	"gopher-dish/object"
 	"gopher-dish/world"
-	"math"
 )
 
 const (
@@ -89,6 +88,28 @@ type Cell struct {
 	Rotation object.Rotation
 }
 
+type saveCellDescriptor struct {
+	Id           uint64
+	Generation   uint64
+	ParentsChain [RelatedDepth]uint64
+
+	Age    uint32
+	Health byte
+	Energy byte
+	Weight byte
+
+	Died   bool
+	Picked bool
+
+	Genome Genome
+	Brain  Brain
+
+	Bagage [BagageSize]uint64
+
+	Position object.Position
+	Rotation object.Rotation
+}
+
 func New(w *world.World, parent *Cell) *Cell {
 	c := &Cell{Health: BaseHealth, Energy: BaseEnergy, Weight: BaseWeight, World: w}
 
@@ -118,163 +139,6 @@ func New(w *world.World, parent *Cell) *Cell {
 	}
 }
 
-// Object interface
-func (c *Cell) GetID() uint64 {
-	return c.Name
-}
-func (c *Cell) Prepare() {
-	if c.Died {
-		return
-	} else if c.Health <= 0 {
-		c.Die()
-		return
-	}
-
-	c.executeCommand(c.currentCommad())
-}
-func (c *Cell) Handle(yearChanged, epochChanged bool) {
-	if c.Died {
-		return
-	} else if c.Health <= 0 {
-		c.Die()
-		return
-	}
-
-	for i := 0; i < GenomeLength && !c.handleCommand(c.currentCommad()); i++ {
-		c.SpendEnergy(BaseEnergyDecrement)
-	}
-
-	if yearChanged {
-		c.Age++
-	}
-}
-
-// Pickable interface
-func (c *Cell) GetWeight() byte {
-	return c.Weight
-}
-func (c *Cell) PickUp() bool {
-	if c.Health == 0 && !c.Picked {
-		c.Picked = true
-		return true
-	}
-
-	return false
-}
-func (c *Cell) Drop() {
-	c.Picked = false
-}
-
-// Movable interface
-func (c *Cell) GetPosition() object.Position {
-	return c.Position
-}
-func (c *Cell) GetRotation() object.Rotation {
-	return c.Rotation
-}
-func (c *Cell) MoveForward() bool {
-	return c.MoveInDirection(c.Rotation)
-}
-func (c *Cell) MoveBackward() bool {
-	return c.MoveInDirection(c.Rotation.Rotate(180))
-}
-func (c *Cell) MoveLeft() bool {
-	return c.MoveInDirection(c.Rotation.Rotate(90))
-}
-func (c *Cell) MoveRight() bool {
-	return c.MoveInDirection(c.Rotation.Rotate(270))
-}
-func (c *Cell) MoveToPosition(pos object.Position) bool {
-	c.Position = pos
-	return true
-}
-func (c *Cell) MoveInDirection(rot object.Rotation) bool {
-	c.SpendEnergy(c.Weight)
-	return c.World.MoveObject(c, c.getRelPos(rot))
-}
-func (c *Cell) Rotate(rot object.Rotation) bool {
-	c.Rotation.Degree = int32(math.Round(float64(c.Rotation.Rotate(rot.Degree).Degree)/45.0)) * 45
-	return true
-}
-
-// Lively interface
-func (c *Cell) GetAge() uint32 {
-	return c.Age
-}
-func (c *Cell) GetHealth() byte {
-	return c.Health
-}
-func (c *Cell) GetEnergy() byte {
-	return c.Energy
-}
-func (c *Cell) IsDied() bool {
-	return c.Died
-}
-func (c *Cell) LoseHealth(health byte) bool {
-	if c.Died {
-		return false
-	}
-	if health < c.Health {
-		c.Health -= health
-	} else {
-		c.Die()
-	}
-
-	return true
-}
-func (c *Cell) SpendEnergy(energy byte) bool {
-	if c.Energy > 0 {
-		// Decrement energy
-		energyDec := byte(math.Round(float64(energy) + float64(c.Age)*AgeInfluenceMultiplier))
-		if energyDec < c.Energy {
-			c.Energy -= energyDec
-		} else {
-			c.Energy = 0
-		}
-	} else {
-		// If there is no energy then decrement health
-		healthDec := byte(math.Round(BaseHealthDecrement * float64(c.Age) * AgeInfluenceMultiplier))
-		c.LoseHealth(healthDec)
-	}
-
-	return true
-}
-func (c *Cell) HealHealth(health byte) bool {
-	if c.Died {
-		return false
-	}
-
-	c.Health += health
-	return true
-}
-func (c *Cell) IncreaseEnergy(energy byte) bool {
-	if c.Died {
-		return false
-	}
-
-	c.Energy += energy
-	return true
-}
-func (c *Cell) Reproduce() bool {
-	if c.Energy <= BaseReproduceEnergyCost/2 {
-		c.SpendEnergy(BaseReproduceEnergyCost)
-		return false
-	}
-	newCell := New(c.World, c)
-	if newCell == nil {
-		return false
-	}
-	c.SpendEnergy(BaseReproduceEnergyCost)
-	return true
-}
-func (c *Cell) Die() bool {
-	c.Health = 0
-	c.Died = true
-	c.World.RemoveObject(c.Name)
-	return true
-}
-
-// Private methods
 func (c *Cell) incCounter() uint64 {
 	c.Brain.CommandCounter++
 	if c.Brain.CommandCounter >= GenomeLength {

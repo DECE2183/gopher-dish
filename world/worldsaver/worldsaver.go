@@ -5,10 +5,6 @@ import (
 	"gopher-dish/object"
 )
 
-const (
-	_TYPE_CELL = iota
-)
-
 type wDescriptor struct {
 	Width, Height uint32
 
