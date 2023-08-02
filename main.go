@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	WorldTickInterval = 16 * time.Millisecond
+	WorldTickInterval = 12 * time.Millisecond
 	UITickInterval    = 33 * time.Millisecond
 )
 
@@ -87,9 +87,9 @@ func main() {
 			cellid := num % uint64(baseWorld.ObjectsIdCounter)
 			cellObj, ok = baseWorld.GetObject(cellid).(*cell.Cell)
 
-			if !ok {
-				fmt.Printf("Cell with id %d not found", cellid)
-				os.Exit(22)
+			for !ok {
+				cellid = rand.Uint64() % uint64(baseWorld.ObjectsIdCounter)
+				cellObj, ok = baseWorld.GetObject(cellid).(*cell.Cell)
 			}
 
 			code := genasm.Disassemble(cellObj.Genome)
@@ -106,8 +106,14 @@ func main() {
 	rand.Seed(seed)
 
 	if baseWorld == nil {
-		baseWorld = world.New(348, 128, WorldTickInterval)
-		cell.New(baseWorld, nil)
+		baseWorld = world.New(380, 200, WorldTickInterval)
+		pos := baseWorld.GetCenter()
+		pos.Y /= 4
+		for i := 0; i < int(baseWorld.Width)/8; i += 8 {
+			pos.X = int32(i*8) + int32(baseWorld.Width)/16
+			pos.Y += int32(baseWorld.Height) / 32
+			cell.New(baseWorld, nil, pos)
+		}
 	}
 
 	go func() {

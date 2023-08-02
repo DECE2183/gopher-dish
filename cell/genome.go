@@ -2,7 +2,6 @@ package cell
 
 import (
 	"gopher-dish/utils"
-	"hash/crc64"
 	"io"
 	"math/rand"
 )
@@ -50,7 +49,7 @@ func CreateBaseGenome() Genome {
 	var newGenome Genome
 	var i utils.Iterator
 
-	for i < GenomeLength-16 {
+	for i < GenomeLength-32 {
 		// Recycle sun 3 times
 		newGenome.Code[i.Inc()] = CMD_NOP
 		newGenome.Code[i.Inc()] = CMD_RECYCLE
@@ -68,7 +67,7 @@ func CreateBaseGenome() Genome {
 		// Jump to energy check block
 		newGenome.Code[i.Inc()] = CMD_DIVE
 		newGenome.Code[i.Inc()] = CND_NONE
-		newGenome.Code[i.Inc()] = GenomeLength - 16
+		newGenome.Code[i.Inc()] = GenomeLength - 32
 	}
 
 	// Check if energy enough to reproduce
@@ -84,7 +83,11 @@ func CreateBaseGenome() Genome {
 	newGenome.Code[i.Inc()] = CMD_LIFT
 	newGenome.Code[i.Inc()] = CND_LESS | CND_EQ
 	// Reproduce elsewise and jump back
+	newGenome.Code[i.Inc()] = CMD_PUT
+	newGenome.Code[i.Inc()] = R2
+	newGenome.Code[i.Inc()] = Command(rand.Uint32() % 256)
 	newGenome.Code[i.Inc()] = CMD_REPRODUCE
+	newGenome.Code[i.Inc()] = R2
 	newGenome.Code[i.Inc()] = CMD_LIFT
 	newGenome.Code[i.Inc()] = CND_NONE
 	// Jump to start
@@ -92,9 +95,7 @@ func CreateBaseGenome() Genome {
 	newGenome.Code[i.Inc()] = CND_NONE
 	newGenome.Code[i.Inc()] = 0
 
-	crc := crc64.New(crc64.MakeTable(crc64.ISO))
-	io.Copy(crc, newGenome)
-	newGenome.Hash = crc.Sum64()
+	newGenome.Hash = genomeHash(newGenome.Code[:])
 
 	return newGenome
 }
@@ -104,9 +105,14 @@ func (g Genome) Mutate() Genome {
 		g.Code[rand.Intn(GenomeLength)] = Command(rand.Intn(256))
 	}
 
-	crc := crc64.New(crc64.MakeTable(crc64.ISO))
-	io.Copy(crc, g)
-	g.Hash = crc.Sum64()
+	g.Hash = genomeHash(g.Code[:])
 
 	return g
+}
+
+func genomeHash(commands []Command) (v uint64) {
+	for i, cmd := range commands {
+		v += uint64(cmd&0x7F) << (i % 10)
+	}
+	return
 }

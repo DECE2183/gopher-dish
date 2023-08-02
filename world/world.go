@@ -13,10 +13,10 @@ const (
 	WorldYearsPerEpoch = 100
 
 	WorldSunlightMultiplier = 1.0
-	WorldSunlightBeginValue = 11.0
+	WorldSunlightBeginValue = 12.0
 	WorldSunlightEndValue   = 0.0
 	WorldSunlightBeginPos   = 0.0
-	WorldSunlightEndPos     = 0.6
+	WorldSunlightEndPos     = 0.85
 
 	WorldMineralsMultiplier = 1.0
 	WorldMineralsBeginValue = 1.0
@@ -86,22 +86,9 @@ func New(width, height uint32, tickInterval time.Duration) *World {
 	return w
 }
 
-func (w *World) AddObject(obj object.Movable) (uint64, object.Position) {
-	pos := obj.GetPosition()
-
-	if !w.IsPlaceFree(pos) {
-		var found bool
-		pos, found = w.GetFreePlace(pos)
-		if !found {
-			return 0, pos
-		}
-	}
-
+func (w *World) ReserveID() uint64 {
 	w.ObjectsIdCounter++
-	w.Objects[w.ObjectsIdCounter] = obj
-	w.Places[pos.X][pos.Y] = obj
-
-	return w.ObjectsIdCounter, pos
+	return w.ObjectsIdCounter
 }
 
 func (w *World) RemoveObject(id uint64) {
@@ -113,10 +100,32 @@ func (w *World) RemoveObject(id uint64) {
 	}
 }
 
-func (w *World) MoveObject(obj object.Movable, pos object.Position) bool {
-	if pos.X < 0 || pos.X >= int32(w.Width) {
+func (w *World) PlaceObject(obj object.Movable, pos object.Position) bool {
+	if w.state != WORLD_STATE_PREPARE && w.state != WORLD_STATE_NONE {
 		return false
 	}
+
+	pos.X = (pos.X + int32(w.Width)) % int32(w.Width)
+	if pos.Y < 0 || pos.Y >= int32(w.Height) {
+		return false
+	}
+
+	if !w.IsPlaceFree(pos) {
+		return false
+	}
+
+	w.Objects[obj.GetID()] = obj
+	w.Places[pos.X][pos.Y] = obj
+
+	return true
+}
+
+func (w *World) MoveObject(obj object.Movable, pos object.Position) bool {
+	if w.state != WORLD_STATE_PREPARE {
+		return false
+	}
+
+	pos.X = (pos.X + int32(w.Width)) % int32(w.Width)
 	if pos.Y < 0 || pos.Y >= int32(w.Height) {
 		return false
 	}
@@ -128,7 +137,6 @@ func (w *World) MoveObject(obj object.Movable, pos object.Position) bool {
 	currentPos := obj.GetPosition()
 	w.Places[currentPos.X][currentPos.Y] = nil
 	w.Places[pos.X][pos.Y] = obj
-	obj.MoveToPosition(pos)
 
 	return true
 }
@@ -144,6 +152,15 @@ func (w *World) GetObject(id uint64) object.Movable {
 }
 
 func (w *World) IsPlaceFree(pos object.Position) bool {
+	if w.state != WORLD_STATE_PREPARE && w.state != WORLD_STATE_NONE {
+		return false
+	}
+
+	pos.X = (pos.X + int32(w.Width)) % int32(w.Width)
+	if pos.Y < 0 || pos.Y >= int32(w.Height) {
+		return false
+	}
+
 	return (w.Places[pos.X][pos.Y] == nil)
 }
 
@@ -152,9 +169,11 @@ func (w *World) GetCenter() object.Position {
 }
 
 func (w *World) GetFreePlace(pos object.Position) (object.Position, bool) {
-	if pos.X < 0 || pos.X >= int32(w.Width) {
+	if w.state != WORLD_STATE_PREPARE {
 		return object.Position{}, false
 	}
+
+	pos.X = (pos.X + int32(w.Width)) % int32(w.Width)
 	if pos.Y < 0 || pos.Y >= int32(w.Height) {
 		return object.Position{}, false
 	}
@@ -186,9 +205,7 @@ func (w *World) GetFreePlace(pos object.Position) (object.Position, bool) {
 }
 
 func (w *World) GetSunlightAtPosition(pos object.Position) byte {
-	if pos.X < 0 || pos.X >= int32(w.Width) {
-		return 0
-	}
+	pos.X = (pos.X + int32(w.Width)) % int32(w.Width)
 	if pos.Y < 0 || pos.Y >= int32(w.Height) {
 		return 0
 	}
@@ -196,9 +213,7 @@ func (w *World) GetSunlightAtPosition(pos object.Position) byte {
 }
 
 func (w *World) GetMineralsAtPosition(pos object.Position) byte {
-	if pos.X < 0 || pos.X >= int32(w.Width) {
-		return 0
-	}
+	pos.X = (pos.X + int32(w.Width)) % int32(w.Width)
 	if pos.Y < 0 || pos.Y >= int32(w.Height) {
 		return 0
 	}
@@ -206,6 +221,15 @@ func (w *World) GetMineralsAtPosition(pos object.Position) byte {
 }
 
 func (w *World) GetObjectAtPosition(pos object.Position) object.Movable {
+	if w.state != WORLD_STATE_PREPARE {
+		return nil
+	}
+
+	pos.X = (pos.X + int32(w.Width)) % int32(w.Width)
+	if pos.Y < 0 || pos.Y >= int32(w.Height) {
+		return nil
+	}
+
 	return w.Places[pos.X][pos.Y]
 }
 
@@ -223,7 +247,6 @@ func (w *World) Handle() {
 	}
 
 	var yearChanged, epochChanged bool
-	w.PlacesDrawMux.Lock()
 
 	w.Ticks++
 	if w.Ticks%WorldTicksPerYear == 0 {
@@ -235,6 +258,8 @@ func (w *World) Handle() {
 			w.Epoch++
 		}
 	}
+
+	w.PlacesDrawMux.Lock()
 
 	w.state = WORLD_STATE_PREPARE
 	for _, o := range w.Objects {
@@ -257,6 +282,8 @@ func (w *World) Handle() {
 	close(w.objectsToRemove)
 	removedObjects := 0
 
+	w.state = WORLD_STATE_PREPARE
+
 	for id := range w.objectsToRemove {
 		w.removeObject(id)
 		removedObjects++
@@ -264,9 +291,9 @@ func (w *World) Handle() {
 
 	w.PlacesDrawMux.Unlock()
 
+	<-w.ticker.C
 	w.Framerate = uint(1000000 / (time.Since(w.lastTickTime).Microseconds() + 1))
 	w.lastTickTime = time.Now()
-	<-w.ticker.C
 }
 
 func (w *World) calculateSunlight() {
@@ -298,14 +325,23 @@ func (w *World) calculateMinerals() {
 }
 
 func (w *World) removeObject(id uint64) {
+	if w.state != WORLD_STATE_PREPARE {
+		return
+	}
+
 	obj, found := w.Objects[id]
 	if !found {
 		return
 	}
 
 	pos := obj.GetPosition()
-	w.Places[pos.X][pos.Y] = nil
 
+	pos.X = (pos.X + int32(w.Width)) % int32(w.Width)
+	if pos.Y < 0 || pos.Y >= int32(w.Height) {
+		return
+	}
+
+	w.Places[pos.X][pos.Y] = nil
 	delete(w.Objects, id)
 }
 

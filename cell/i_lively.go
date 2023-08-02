@@ -1,6 +1,9 @@
 package cell
 
-import "math"
+import (
+	"gopher-dish/object"
+	"math"
+)
 
 // Lively interface implementation
 
@@ -16,6 +19,10 @@ func (c *Cell) GetEnergy() byte {
 	return c.Energy
 }
 
+func (c *Cell) GetGenomeHash() uint64 {
+	return c.Genome.Hash
+}
+
 func (c *Cell) IsDied() bool {
 	return c.Died
 }
@@ -24,6 +31,7 @@ func (c *Cell) LoseHealth(health byte) bool {
 	if c.Died {
 		return false
 	}
+
 	if health < c.Health {
 		c.Health -= health
 	} else {
@@ -36,16 +44,19 @@ func (c *Cell) LoseHealth(health byte) bool {
 func (c *Cell) SpendEnergy(energy byte) bool {
 	if c.Energy > 0 {
 		// Decrement energy
-		energyDec := byte(math.Round(float64(energy) + float64(c.Age)*AgeInfluenceMultiplier))
-		if energyDec < c.Energy {
-			c.Energy -= energyDec
+		energyDec := uint32(math.Round(float64(energy) + float64(c.Age)*AgeInfluenceMultiplier))
+		if energyDec < uint32(c.Energy) {
+			c.Energy -= byte(energyDec)
 		} else {
 			c.Energy = 0
 		}
 	} else {
 		// If there is no energy then decrement health
-		healthDec := byte(math.Round(BaseHealthDecrement * float64(c.Age) * AgeInfluenceMultiplier))
-		c.LoseHealth(healthDec)
+		healthDec := uint32(math.Round(float64(energy) + BaseHealthDecrement*float64(c.Age)*AgeInfluenceMultiplier))
+		if healthDec > 255 {
+			healthDec = 255
+		}
+		c.LoseHealth(byte(healthDec))
 	}
 
 	return true
@@ -65,17 +76,24 @@ func (c *Cell) IncreaseEnergy(energy byte) bool {
 		return false
 	}
 
-	c.Energy += energy
+	if int(c.Energy)+int(energy) > 255 {
+		c.Energy = 255
+	} else {
+		c.Energy += energy
+	}
+
 	return true
 }
 
-func (c *Cell) Reproduce() bool {
+func (c *Cell) Reproduce(rot object.Rotation) bool {
 	if c.Energy <= BaseReproduceEnergyCost/2 {
-		c.SpendEnergy(BaseReproduceEnergyCost)
+		c.SpendEnergy(BaseReproduceEnergyCost / 2)
 		return false
 	}
-	newCell := New(c.World, c)
+	pos := c.getRelPos(rot)
+	newCell := New(c.World, c, pos)
 	if newCell == nil {
+		c.SpendEnergy(BaseReproduceEnergyCost / 2)
 		return false
 	}
 	c.SpendEnergy(BaseReproduceEnergyCost)

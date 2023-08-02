@@ -32,16 +32,21 @@ func (c *Cell) MoveRight() bool {
 }
 
 func (c *Cell) MoveToPosition(pos object.Position) bool {
+	c.SpendEnergy(c.Weight)
+	pos.X = (pos.X + int32(c.World.Width)) % int32(c.World.Width)
+	if !c.World.MoveObject(c, pos) {
+		return false
+	}
 	c.Position = pos
 	return true
 }
 
 func (c *Cell) MoveInDirection(rot object.Rotation) bool {
-	c.SpendEnergy(c.Weight)
-	return c.World.MoveObject(c, c.getRelPos(rot))
+	return c.MoveToPosition(c.getRelPos(rot))
 }
 
 func (c *Cell) Rotate(rot object.Rotation) bool {
 	c.Rotation.Degree = int32(math.Round(float64(c.Rotation.Rotate(rot.Degree).Degree)/45.0)) * 45
+	c.SpendEnergy(c.Weight / 4)
 	return true
 }

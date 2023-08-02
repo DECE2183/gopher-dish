@@ -6,6 +6,7 @@ type Lively interface {
 	GetAge() uint32
 	GetHealth() byte
 	GetEnergy() byte
+	GetGenomeHash() uint64
 
 	IsDied() bool
 
@@ -15,6 +16,6 @@ type Lively interface {
 	HealHealth(health byte) bool
 	IncreaseEnergy(energy byte) bool
 
-	Reproduce() bool
+	Reproduce(dir Rotation) bool
 	Die() bool
 }

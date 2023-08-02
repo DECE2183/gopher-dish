@@ -24,6 +24,8 @@ var (
 	colorObjectLively = pixel.RGB(0.38, 0.58, 0.27)
 	colorObjectDied   = pixel.RGB(112.0/255.0, 51.0/255.0, 13.0/255.0)
 
+	colorObjectHealthMax = pixel.RGB(0.188, 0.91, 0.118)
+	colorObjectHealthMin = pixel.RGB(0.8, 0.675, 0.161)
 	colorObjectEnergyMax = pixel.RGB(1, 0.91, 0)
 	colorObjectEnergyMin = pixel.RGB(1, 0, 0)
 	colorObjectAgeMax    = pixel.RGB(0, 0.015, 0.52)
@@ -38,6 +40,7 @@ type WorldFilter byte
 
 const (
 	W_FILTER_DISABLE    WorldFilter = iota
+	W_FILTER_HEALTH     WorldFilter = iota
 	W_FILTER_ENERGY     WorldFilter = iota
 	W_FILTER_AGE        WorldFilter = iota
 	W_FILTER_FOOD_TYPE  WorldFilter = iota
@@ -121,15 +124,16 @@ func (wd *WorldDrawer) DrawBase() {
 }
 
 func (wd *WorldDrawer) ComputeObjectColor(obj object.Object) color.Color {
-	var _obj interface{} = obj
-	switch o := _obj.(type) {
+	switch o := obj.(type) {
 	case object.Lively:
 		if o.IsDied() {
 			return colorObjectDied
 		}
 		switch wd.Filter {
 		case W_FILTER_DISABLE:
-			return colorObjectLively
+			return lerpColor(colorObjectLively, hashToColor(o.GetGenomeHash()), 0.2)
+		case W_FILTER_HEALTH:
+			return lerpColor(colorObjectHealthMin, colorObjectHealthMax, float64(o.GetHealth())/128)
 		case W_FILTER_ENERGY:
 			return lerpColor(colorObjectEnergyMin, colorObjectEnergyMax, float64(o.GetEnergy())/128)
 		case W_FILTER_AGE:
@@ -149,31 +153,26 @@ func (wd *WorldDrawer) DrawObjects() {
 	defer wd.world.PlacesDrawMux.Unlock()
 
 	wd.objectsDrawer.Clear()
+	for _, o := range wd.world.Objects {
+		pos := o.GetPosition()
 
-	for x := 0; x < int(wd.world.Width); x++ {
-		for y := 0; y < int(wd.world.Height); y++ {
-			if wd.world.Places[x][y] == nil {
-				continue
-			}
+		var posX, posY = float64(pos.X) * wd.zoom, wd.bounds.Max.Y - float64(pos.Y)*wd.zoom
+		wd.objectsDrawer.EndShape = imdraw.NoEndShape
 
-			var posX, posY = float64(x) * wd.zoom, wd.bounds.Max.Y - float64(y)*wd.zoom
-			wd.objectsDrawer.EndShape = imdraw.NoEndShape
-
-			if wd.zoom > 9 {
-				// draw outline
-				wd.objectsDrawer.Color = colorOutline
-				wd.objectsDrawer.Push(pixel.V(posX, posY), pixel.V(posX+wd.zoom, posY-wd.zoom))
-				wd.objectsDrawer.Rectangle(1)
-				// draw cell
-				wd.objectsDrawer.Color = wd.ComputeObjectColor(wd.world.Places[x][y])
-				wd.objectsDrawer.Push(pixel.V(posX, posY-1), pixel.V(posX+wd.zoom-1, posY-wd.zoom))
-				wd.objectsDrawer.Rectangle(0)
-			} else {
-				// if cells are too small, draw only cells
-				wd.objectsDrawer.Color = wd.ComputeObjectColor(wd.world.Places[x][y])
-				wd.objectsDrawer.Push(pixel.V(posX, posY), pixel.V(posX+wd.zoom, posY-wd.zoom))
-				wd.objectsDrawer.Rectangle(0)
-			}
+		if wd.zoom > 12 {
+			// draw outline
+			wd.objectsDrawer.Color = colorOutline
+			wd.objectsDrawer.Push(pixel.V(posX, posY), pixel.V(posX+wd.zoom, posY-wd.zoom))
+			wd.objectsDrawer.Rectangle(1)
+			// draw cell
+			wd.objectsDrawer.Color = wd.ComputeObjectColor(o)
+			wd.objectsDrawer.Push(pixel.V(posX, posY-1), pixel.V(posX+wd.zoom-1, posY-wd.zoom))
+			wd.objectsDrawer.Rectangle(0)
+		} else {
+			// if cells are too small, draw only cells
+			wd.objectsDrawer.Color = wd.ComputeObjectColor(o)
+			wd.objectsDrawer.Push(pixel.V(posX, posY), pixel.V(posX+wd.zoom, posY-wd.zoom))
+			wd.objectsDrawer.Rectangle(0)
 		}
 	}
 }
@@ -197,6 +196,16 @@ func lerpColor(a pixel.RGBA, b pixel.RGBA, v float64) pixel.RGBA {
 		R: a.R + (b.R-a.R)*v,
 		G: a.G + (b.G-a.G)*v,
 		B: a.B + (b.B-a.B)*v,
+		A: 1.0,
+	}
+}
+
+func hashToColor(hash uint64) pixel.RGBA {
+	b := float64(hash&0xFFFF) / 0xFFFF
+	return pixel.RGBA{
+		R: (float64((hash>>2)&0xFFFF) / 0xFFFF) * b,
+		G: (float64((hash>>4)&0xFFFF) / 0xFFFF) * b,
+		B: (float64((hash>>6)&0xFFFF) / 0xFFFF) * b,
 		A: 1.0,
 	}
 }

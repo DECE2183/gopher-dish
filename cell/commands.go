@@ -35,10 +35,10 @@ const (
 	CMD_MUL // +
 	CMD_DIV // +
 	// Application commands
-	CMD_MOVE     // + move self cell
-	CMD_ROTATE   // + rotate self cell
-	CMD_CHECKPOS // + get type of object at near position
-	CMD_BITE
+	CMD_MOVE      // + move self cell
+	CMD_ROTATE    // + rotate self cell
+	CMD_CHECKPOS  // + get type of object at near position
+	CMD_BITE      // - bite another cell
 	CMD_RECYCLE   // + recycle something to energy
 	CMD_REPRODUCE // + reproduce
 	// Bagage commands
@@ -55,6 +55,18 @@ const (
 	CMD_GETCOUNTER // + get current command counter
 
 	CMD_ENUM_SIZE
+)
+
+// Directions list
+const (
+	DIR_0 = iota
+	DIR_45
+	DIR_90
+	DIR_135
+	DIR_180
+	DIR_225
+	DIR_270
+	DIR_315
 )
 
 // Compare conditions list
@@ -244,9 +256,9 @@ var commandMap = map[Command]CommandDescriptor{
 	// Relative move command
 	CMD_MOVE: {func(c *Cell) {
 		dirReg := truncCmd(c.Genome.Code[c.incCounter()], RegistersCount)
-		dir := (c.Brain.Registers[dirReg] % 8) * 45
+		dir := int32(c.Brain.Registers[dirReg]%8) * 45
 
-		moveSuc := c.MoveInDirection(object.Rotation{Degree: int32(dir)})
+		moveSuc := c.MoveInDirection(object.Rotation{Degree: dir})
 
 		if moveSuc {
 			c.Brain.CompareFlag = CND_SUCCESS
@@ -258,9 +270,9 @@ var commandMap = map[Command]CommandDescriptor{
 	// Relative rotation  command
 	CMD_ROTATE: {func(c *Cell) {
 		dirReg := truncCmd(c.Genome.Code[c.incCounter()], RegistersCount)
-		dir := (c.Brain.Registers[dirReg] % 8) * 45
+		dir := int32(c.Brain.Registers[dirReg]%8) * 45
 
-		rotSuc := c.Rotate(object.Rotation{Degree: int32(dir)})
+		rotSuc := c.Rotate(object.Rotation{Degree: dir})
 
 		if rotSuc {
 			c.Brain.CompareFlag = CND_SUCCESS
@@ -273,9 +285,9 @@ var commandMap = map[Command]CommandDescriptor{
 	CMD_CHECKPOS: {func(c *Cell) {
 		dest := truncCmd(c.Genome.Code[c.incCounter()], RegistersCount)
 		dirReg := truncCmd(c.Genome.Code[c.incCounter()], RegistersCount)
-		dir := (c.Brain.Registers[dirReg] % 8) * 45
+		dir := int32(c.Brain.Registers[dirReg]%8) * 45
 
-		pos := c.getRelPos(object.Rotation{Degree: int32(dir)})
+		pos := c.getRelPos(object.Rotation{Degree: dir})
 		if pos.Y < 0 || pos.Y >= int32(c.World.Height) {
 			c.Brain.Registers[dest] = OBJ_WALL
 			c.incCounter()
@@ -306,7 +318,9 @@ var commandMap = map[Command]CommandDescriptor{
 	}, true},
 	// Reproduce
 	CMD_REPRODUCE: {func(c *Cell) {
-		c.Reproduce()
+		dirReg := truncCmd(c.Genome.Code[c.incCounter()], RegistersCount)
+		dir := int32(c.Brain.Registers[dirReg]%8) * 45
+		c.Reproduce(object.Rotation{Degree: dir})
 		c.incCounter()
 	}, true},
 

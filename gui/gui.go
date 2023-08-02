@@ -34,7 +34,7 @@ func Run(updateInterval time.Duration, world *world.World) {
 func initGUI() {
 	cfg := pixelgl.WindowConfig{
 		Title:     "gopher-dish",
-		Bounds:    pixel.R(0, 0, 1536, 740),
+		Bounds:    pixel.R(0, 0, 1736, 920),
 		Resizable: true,
 	}
 
@@ -50,10 +50,11 @@ func initGUI() {
 	btnStop := widgets.NewButton("stop", pixel.V(70, 29), pixel.V(60, 30))
 
 	btnNormal := widgets.NewButton("normal", pixel.V(150, 29), pixel.V(60, 30))
-	btnEnergy := widgets.NewButton("energy", pixel.V(215, 29), pixel.V(60, 30))
-	btnAge := widgets.NewButton("age", pixel.V(280, 29), pixel.V(60, 30))
+	btnHealth := widgets.NewButton("health", pixel.V(215, 29), pixel.V(60, 30))
+	btnEnergy := widgets.NewButton("energy", pixel.V(280, 29), pixel.V(60, 30))
+	btnAge := widgets.NewButton("age", pixel.V(345, 29), pixel.V(60, 30))
 
-	btnSave := widgets.NewButton("save", pixel.V(360, 29), pixel.V(60, 30))
+	btnSave := widgets.NewButton("save", pixel.V(425, 29), pixel.V(60, 30))
 
 	textAtlas = text.NewAtlas(basicfont.Face7x13, text.ASCII, text.RangeTable(unicode.Latin))
 	statusText := text.New(pixel.V(0, 0), textAtlas)
@@ -95,6 +96,9 @@ func initGUI() {
 
 		if btnNormal.Draw(win) {
 			wd.Filter = W_FILTER_DISABLE
+		}
+		if btnHealth.Draw(win) {
+			wd.Filter = W_FILTER_HEALTH
 		}
 		if btnEnergy.Draw(win) {
 			wd.Filter = W_FILTER_ENERGY

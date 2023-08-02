@@ -19,9 +19,9 @@ const (
 	BaseHealth              = 60
 	BaseEnergy              = 28
 	BaseWeight              = 5
-	BaseEnergyDecrement     = 3
+	BaseEnergyDecrement     = 2
 	BaseHealthDecrement     = 5
-	AgeInfluenceMultiplier  = 2.8
+	AgeInfluenceMultiplier  = 0.8
 	BaseReproduceEnergyCost = 32
 )
 
@@ -110,7 +110,7 @@ type saveCellDescriptor struct {
 	Rotation object.Rotation
 }
 
-func New(w *world.World, parent *Cell) *Cell {
+func New(w *world.World, parent *Cell, pos object.Position) *Cell {
 	c := &Cell{Health: BaseHealth, Energy: BaseEnergy, Weight: BaseWeight, World: w}
 
 	if parent != nil {
@@ -119,20 +119,18 @@ func New(w *world.World, parent *Cell) *Cell {
 		}
 		c.ParentsChain[0] = parent.Name
 		c.Generation = parent.Generation + 1
-		c.Position = parent.Position
 		c.Genome = parent.Genome.Mutate()
 		if c.Energy > parent.Energy {
 			c.Energy = parent.Energy
 		}
 	} else {
-		c.Position = w.GetCenter()
-		c.Position.Y /= 6
 		c.Genome = CreateBaseGenome()
 	}
 
-	c.Name, c.Position = w.AddObject(c)
+	c.Position = pos
+	c.Name = w.ReserveID()
 
-	if c.Name > 0 {
+	if c.Name > 0 && w.PlaceObject(c, c.Position) {
 		return c
 	} else {
 		return nil
@@ -144,7 +142,6 @@ func (c *Cell) incCounter() uint64 {
 	if c.Brain.CommandCounter >= GenomeLength {
 		c.Brain.CommandCounter = 0
 	}
-	c.LoseHealth(BaseEnergyDecrement / 2)
 	return c.Brain.CommandCounter
 }
 
@@ -158,28 +155,28 @@ func (c *Cell) recycle(rType uint64) {
 
 func (c *Cell) getRelPos(rot object.Rotation) object.Position {
 	newPos := c.Position
-	switch c.Rotation.Degree {
+	switch c.Rotation.Rotate(rot.Degree).Degree {
 	case 0:
-		newPos.X++
+		newPos.Y--
 	case 45:
 		newPos.X++
 		newPos.Y--
 	case 90:
-		newPos.Y--
+		newPos.X++
 	case 135:
-		newPos.X--
-		newPos.Y--
+		newPos.X++
+		newPos.Y++
 	case 180:
-		newPos.X--
+		newPos.Y++
 	case 225:
 		newPos.X--
 		newPos.Y++
 	case 270:
-		newPos.Y++
+		newPos.X--
 	case 315:
-		newPos.X++
-		newPos.Y++
+		newPos.X--
+		newPos.Y--
 	}
-	newPos.X = newPos.X % int32(c.World.Width)
+	newPos.X = (newPos.X + int32(c.World.Width)) % int32(c.World.Width)
 	return newPos
 }
