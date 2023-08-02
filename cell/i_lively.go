@@ -42,17 +42,15 @@ func (c *Cell) LoseHealth(health byte) bool {
 }
 
 func (c *Cell) SpendEnergy(energy byte) bool {
-	if c.Energy > 0 {
+	energyDec := uint32(math.Round(float64(energy) + float64(c.Age)*AgeInfluenceMultiplier))
+	if energyDec < uint32(c.Energy) {
 		// Decrement energy
-		energyDec := uint32(math.Round(float64(energy) + float64(c.Age)*AgeInfluenceMultiplier))
-		if energyDec < uint32(c.Energy) {
-			c.Energy -= byte(energyDec)
-		} else {
-			c.Energy = 0
-		}
+		c.Energy -= byte(energyDec)
 	} else {
 		// If there is no energy then decrement health
-		healthDec := uint32(math.Round(float64(energy) + BaseHealthDecrement*float64(c.Age)*AgeInfluenceMultiplier))
+		c.Energy = 0
+		energyDec -= uint32(c.Energy)
+		healthDec := uint32(math.Round(float64(energyDec) + BaseHealthDecrement*float64(c.Age)*AgeInfluenceMultiplier))
 		if healthDec > 255 {
 			healthDec = 255
 		}
