@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	GenomeMutationRate = 1
+	GenomeMutationRate = 2
 )
 
 type Genome struct {

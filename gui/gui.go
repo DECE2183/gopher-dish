@@ -2,12 +2,15 @@ package gui
 
 import (
 	"fmt"
+	"math/rand"
 	"os"
 	"time"
 	"unicode"
 
+	"gopher-dish/cell"
 	"gopher-dish/gui/filepicker"
 	"gopher-dish/gui/widgets"
+	"gopher-dish/object"
 	"gopher-dish/world"
 	"gopher-dish/world/worldsaver"
 
@@ -55,6 +58,7 @@ func initGUI() {
 	btnAge := widgets.NewButton("age", pixel.V(345, 29), pixel.V(60, 30))
 
 	btnSave := widgets.NewButton("save", pixel.V(425, 29), pixel.V(60, 30))
+	btnRestart := widgets.NewButton("restart", pixel.V(490, 29), pixel.V(60, 30))
 
 	textAtlas = text.NewAtlas(basicfont.Face7x13, text.ASCII, text.RangeTable(unicode.Latin))
 	statusText := text.New(pixel.V(0, 0), textAtlas)
@@ -111,6 +115,28 @@ func initGUI() {
 			wd.world.Paused = true
 			saveWorld(wd.world)
 			wd.world.Paused = false
+		}
+		if btnRestart.Draw(win) {
+			wd.world.Paused = true
+			time.Sleep(time.Millisecond * 100)
+			for id := range wd.world.Objects {
+				wd.world.RemoveObject(id)
+			}
+			pos := object.Position{}
+			for x := 0; x < int(wd.world.Width); x += 8 {
+				for y := 0; y < int(wd.world.Height)/8; y += 1 {
+					pos.X = int32(x) + 4
+					pos.Y = int32(y*8) + 4*int32((x/8)%2)
+					c := cell.New(wd.world, nil, pos)
+					if c == nil {
+						continue
+					}
+					c.Rotation.Degree = int32((rand.Uint32() % 8) * 45)
+					for i := 0; i < 256; i++ {
+						c.Genome.Mutate()
+					}
+				}
+			}
 		}
 
 		win.Update()

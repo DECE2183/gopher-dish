@@ -31,6 +31,10 @@ func (c *Cell) IsDied() bool {
 	return c.Died
 }
 
+func (c *Cell) IsKilled() bool {
+	return c.Killed
+}
+
 func (c *Cell) IsReleated(another object.Lively) bool {
 	ochain := another.GetParentsChain()
 	oid := another.GetID()
@@ -127,11 +131,14 @@ func (c *Cell) Bite(strength byte) byte {
 	}
 
 	c.SpendEnergy(byte(biteStrength))
+	c.Killed = true
 
-	energy := biteStrength - int(math.Round(float64(c.Age)*AgeInfluenceMultiplier)) + int(c.Weight)
+	var energy int
 	if c.Died {
-		energy += int(c.Energy)
+		energy = int(c.Energy)
 		c.World.RemoveObject(c.Name)
+	} else {
+		energy = biteStrength - int(math.Round(float64(c.Age)*AgeInfluenceMultiplier)) + int(c.Weight)
 	}
 
 	if energy > 255 {
@@ -140,7 +147,7 @@ func (c *Cell) Bite(strength byte) byte {
 		return 0
 	}
 
-	return byte(energy / 4)
+	return byte(energy)
 }
 
 func (c *Cell) Die() bool {

@@ -23,6 +23,7 @@ var (
 
 	colorObjectLively = pixel.RGB(0.38, 0.58, 0.27)
 	colorObjectDied   = pixel.RGB(0.8, 0.698, 0.729)
+	colorObjectKilled = pixel.RGB(0.702, 0.082, 0.141)
 
 	colorObjectHealthMax = pixel.RGB(0.188, 0.91, 0.118)
 	colorObjectHealthMin = pixel.RGB(0.8, 0.675, 0.161)
@@ -127,13 +128,16 @@ func (wd *WorldDrawer) ComputeObjectColor(obj object.Object) color.Color {
 	switch o := obj.(type) {
 	case object.Lively:
 		if o.IsDied() {
+			if o.IsKilled() {
+				return colorObjectKilled
+			}
 			return colorObjectDied
 		}
 		switch wd.Filter {
 		case W_FILTER_DISABLE:
 			return lerpColor(colorObjectLively, hashToColor(o.GetGenomeHash()), 0.2)
 		case W_FILTER_HEALTH:
-			return lerpColor(colorObjectHealthMin, colorObjectHealthMax, float64(o.GetHealth())/128)
+			return lerpColor(colorObjectHealthMin, colorObjectHealthMax, float64(o.GetHealth())/50)
 		case W_FILTER_ENERGY:
 			return lerpColor(colorObjectEnergyMin, colorObjectEnergyMax, float64(o.GetEnergy())/128)
 		case W_FILTER_AGE:

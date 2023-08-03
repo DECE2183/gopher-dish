@@ -12,11 +12,15 @@ func Disassemble(genome cell.Genome) (code string) {
 	for cmditr < cell.GenomeLength {
 		cmd := genome.Code[cmditr.Inc()]
 		cmdName, ok := commandNames[cmd]
-		if !ok {
-			code += fmt.Sprintf("%-5s;\n", commandNames[cell.CMD_NOP])
+		if !ok || cmd == cell.CMD_NOP {
+			code += fmt.Sprintf("%s;\n", commandNames[cell.CMD_NOP])
 			continue
 		}
-		code += fmt.Sprintf("%-5s", cmdName)
+		if len(commandArgs[cmd]) == 0 {
+			code += fmt.Sprintf("%s;\n", cmdName)
+			continue
+		}
+		code += fmt.Sprintf("%-5s ", cmdName)
 		for i, argt := range commandArgs[cmd] {
 			switch argt {
 			case _ARG_CONST:

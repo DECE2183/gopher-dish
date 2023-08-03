@@ -16,6 +16,7 @@ type Lively interface {
 	GetParentsChain() ParentsChain
 
 	IsDied() bool
+	IsKilled() bool
 	IsReleated(another Lively) bool
 
 	LoseHealth(health byte) bool

@@ -30,6 +30,7 @@ Each cell has 4 general purpose registers and 64 bytes of RAM.
 | CHECKPOS   | get type of object at near position       | :ballot_box_with_check: |
 | CHECKREL   | get releations with cell at near position | :ballot_box_with_check: |
 | BITE       | bite another cell                         | :ballot_box_with_check: |
+| SHARE      | share energy with near cell               | :ballot_box_with_check: |
 | RECYCLE    | recycle something to energy               | :ballot_box_with_check: |
 | REPRODUCE  | reproduce                                 | :ballot_box_with_check: |
 | PICKUP     | pickup something                          | :black_square_button:   |

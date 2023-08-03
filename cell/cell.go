@@ -21,7 +21,7 @@ const (
 	BaseEnergyDecrement     = 2
 	BaseHealthDecrement     = 4
 	BaseBiteStrength        = 40
-	AgeInfluenceMultiplier  = 2.5
+	AgeInfluenceMultiplier  = 0.2
 	BaseReproduceEnergyCost = 32
 )
 
@@ -75,6 +75,7 @@ type Cell struct {
 	Weight byte
 
 	Died   bool
+	Killed bool
 	Picked bool
 
 	Genome     Genome

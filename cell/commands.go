@@ -38,13 +38,14 @@ const (
 	CMD_MUL // +
 	CMD_DIV // +
 	// Application commands
-	CMD_MOVE      // + move self cell
-	CMD_ROTATE    // + rotate self cell
-	CMD_CHECKPOS  // + get type of object at near position
-	CMD_CHECKREL  // + get releations with cell at near position
-	CMD_BITE      // + bite another cell
-	CMD_RECYCLE   // + recycle something to energy
-	CMD_REPRODUCE // + reproduce
+	CMD_MOVE        // + move self cell
+	CMD_ROTATE      // + rotate self cell
+	CMD_CHECKPOS    // + get type of object at near position
+	CMD_CHECKREL    // + get releations with cell at near position
+	CMD_BITE        // + bite another cell
+	CMD_SHAREENERGY // + share energy with near cell
+	CMD_RECYCLE     // + recycle something to energy
+	CMD_REPRODUCE   // + reproduce
 	// Bagage commands
 	CMD_PICKUP    // - pickup something
 	CMD_DROP      // - drop selected item from bag
@@ -389,6 +390,43 @@ var commandMap = map[Command]CommandDescriptor{
 		}
 
 		c.IncreaseEnergy(v.Bite(byte(biteStrength)))
+		c.Brain.CompareFlag = CND_SUCCESS
+		c.incCounter()
+	}, true},
+	// Share energy with near cell
+	CMD_SHAREENERGY: {func(c *Cell) {
+		dirReg := truncCmd(c.Genome.Code[c.incCounter()], RegistersCount)
+		dir := int32(c.Brain.Registers[dirReg]%8) * 45
+
+		pos := c.getRelPos(object.Rotation{Degree: dir})
+		if pos.Y < 0 || pos.Y >= int32(c.World.Height) {
+			c.Brain.CompareFlag = CND_FAIL
+			c.incCounter()
+			return
+		}
+
+		o := c.World.GetObjectAtPosition(pos)
+		if o == nil {
+			c.Brain.CompareFlag = CND_FAIL
+			c.incCounter()
+			return
+		}
+
+		v, ok := o.(object.Lively)
+		if !ok {
+			c.Brain.CompareFlag = CND_FAIL
+			c.incCounter()
+			return
+		}
+
+		shenergy := BaseReproduceEnergyCost / 2
+		c.SpendEnergy(byte(shenergy + BaseEnergyDecrement))
+
+		if int(c.Energy) < shenergy {
+			shenergy = int(c.Energy)
+		}
+
+		v.IncreaseEnergy(byte(shenergy))
 		c.Brain.CompareFlag = CND_SUCCESS
 		c.incCounter()
 	}, true},
