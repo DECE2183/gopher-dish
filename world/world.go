@@ -82,6 +82,7 @@ func New(width, height uint32, tickInterval time.Duration) *World {
 	w.calculateMinerals()
 
 	w.chunkCount = runtime.NumCPU()
+	w.Paused = true
 
 	return w
 }

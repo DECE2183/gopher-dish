@@ -11,17 +11,17 @@ const (
 	StackDepth     = 32
 	RegistersCount = 4
 	SensorsCount   = 4
-	RelatedDepth   = 6
 	BagageSize     = 4
 )
 
 const (
-	BaseHealth              = 60
-	BaseEnergy              = 28
+	BaseHealth              = 50
+	BaseEnergy              = 20
 	BaseWeight              = 5
 	BaseEnergyDecrement     = 2
-	BaseHealthDecrement     = 5
-	AgeInfluenceMultiplier  = 1.2
+	BaseHealthDecrement     = 4
+	BaseBiteStrength        = 40
+	AgeInfluenceMultiplier  = 2.5
 	BaseReproduceEnergyCost = 32
 )
 
@@ -67,7 +67,7 @@ type Brain struct {
 type Cell struct {
 	Name         uint64
 	Generation   uint64
-	ParentsChain [RelatedDepth]uint64
+	ParentsChain object.ParentsChain
 
 	Age    uint32
 	Health byte
@@ -91,7 +91,7 @@ type Cell struct {
 type saveCellDescriptor struct {
 	Id           uint64
 	Generation   uint64
-	ParentsChain [RelatedDepth]uint64
+	ParentsChain object.ParentsChain
 
 	Age    uint32
 	Health byte
@@ -114,7 +114,7 @@ func New(w *world.World, parent *Cell, pos object.Position) *Cell {
 	c := &Cell{Health: BaseHealth, Energy: BaseEnergy, Weight: BaseWeight, World: w}
 
 	if parent != nil {
-		for i := 0; i < RelatedDepth-1; i++ {
+		for i := 0; i < object.RelatedDepth-1; i++ {
 			c.ParentsChain[i+1] = parent.ParentsChain[i]
 		}
 		c.ParentsChain[0] = parent.Name

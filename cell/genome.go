@@ -75,7 +75,7 @@ func CreateBaseGenome() Genome {
 	newGenome.Code[i.Inc()] = R1
 	newGenome.Code[i.Inc()] = CMD_PUT
 	newGenome.Code[i.Inc()] = R2
-	newGenome.Code[i.Inc()] = BaseEnergy * 3
+	newGenome.Code[i.Inc()] = BaseReproduceEnergyCost * 3
 	newGenome.Code[i.Inc()] = CMD_CMP
 	newGenome.Code[i.Inc()] = R1
 	newGenome.Code[i.Inc()] = R2

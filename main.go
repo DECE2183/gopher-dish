@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"gopher-dish/cell"
 	"gopher-dish/gui"
+	"gopher-dish/object"
 	"gopher-dish/utils"
 	"gopher-dish/utils/genasm"
 	"gopher-dish/world"
@@ -107,12 +108,19 @@ func main() {
 
 	if baseWorld == nil {
 		baseWorld = world.New(380, 200, WorldTickInterval)
-		pos := baseWorld.GetCenter()
-		pos.Y /= 4
-		for i := 0; i < int(baseWorld.Width)/8; i += 8 {
-			pos.X = int32(i*8) + int32(baseWorld.Width)/16
-			pos.Y += int32(baseWorld.Height) / 32
-			cell.New(baseWorld, nil, pos)
+		pos := object.Position{}
+		for x := 0; x < int(baseWorld.Width); x += 4 {
+			for y := 0; y < int(baseWorld.Height)/4; y += 1 {
+				pos.X = int32(x) + 2
+				pos.Y = int32(y*4) + int32((x/4)%2)
+				c := cell.New(baseWorld, nil, pos)
+				if c == nil {
+					continue
+				}
+				for i := 0; i < 256; i++ {
+					c.Genome.Mutate()
+				}
+			}
 		}
 	}
 

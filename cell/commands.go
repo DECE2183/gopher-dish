@@ -2,6 +2,8 @@ package cell
 
 import (
 	"gopher-dish/object"
+	"math"
+	"math/rand"
 )
 
 func truncCmd(cmd Command, max uint64) uint64 {
@@ -26,7 +28,8 @@ const (
 	CMD_DIVE // + dive into function
 	CMD_LIFT // + lift from function
 	// Memory commands
-	CMD_PUT  // + put const to mem
+	CMD_PUT  // + put const to reg
+	CMD_RAND // + put random value to reg
 	CMD_SAVE // + put reg value to mem
 	CMD_LOAD // + load mem value to reg
 	// Math commands
@@ -38,7 +41,8 @@ const (
 	CMD_MOVE      // + move self cell
 	CMD_ROTATE    // + rotate self cell
 	CMD_CHECKPOS  // + get type of object at near position
-	CMD_BITE      // - bite another cell
+	CMD_CHECKREL  // + get releations with cell at near position
+	CMD_BITE      // + bite another cell
 	CMD_RECYCLE   // + recycle something to energy
 	CMD_REPRODUCE // + reproduce
 	// Bagage commands
@@ -194,6 +198,14 @@ var commandMap = map[Command]CommandDescriptor{
 		c.Brain.Registers[reg] = val
 		c.incCounter()
 	}, false},
+	// Put random value to register
+	CMD_RAND: {func(c *Cell) {
+		reg := truncCmd(c.Genome.Code[c.incCounter()], RegistersCount)
+		val := byte(rand.Uint32() % 256)
+
+		c.Brain.Registers[reg] = val
+		c.incCounter()
+	}, false},
 	// Save value from register to memory
 	CMD_SAVE: {func(c *Cell) {
 		reg := truncCmd(c.Genome.Code[c.incCounter()], RegistersCount)
@@ -308,6 +320,76 @@ var commandMap = map[Command]CommandDescriptor{
 			}
 		}
 
+		c.incCounter()
+	}, true},
+	// Check releations of near cell
+	CMD_CHECKREL: {func(c *Cell) {
+		dest := truncCmd(c.Genome.Code[c.incCounter()], RegistersCount)
+		dirReg := truncCmd(c.Genome.Code[c.incCounter()], RegistersCount)
+		dir := int32(c.Brain.Registers[dirReg]%8) * 45
+
+		pos := c.getRelPos(object.Rotation{Degree: dir})
+		if pos.Y < 0 || pos.Y >= int32(c.World.Height) {
+			c.Brain.Registers[dest] = OBJ_WALL
+			c.incCounter()
+			return
+		}
+
+		o := c.World.GetObjectAtPosition(pos)
+		if o == nil {
+			c.Brain.Registers[dest] = OBJ_EMPTY
+		} else {
+			switch v := o.(type) {
+			case *Cell:
+				if v.IsDied() {
+					c.Brain.Registers[dest] = OBJ_DEAD
+				} else {
+					if c.IsReleated(v) {
+						c.Brain.Registers[dest] = OBJ_RELATED
+					} else {
+						c.Brain.Registers[dest] = OBJ_UNRELATED
+					}
+				}
+			default:
+				c.Brain.Registers[dest] = OBJ_EMPTY
+			}
+		}
+
+		c.incCounter()
+	}, true},
+	// Bite another cell
+	CMD_BITE: {func(c *Cell) {
+		dirReg := truncCmd(c.Genome.Code[c.incCounter()], RegistersCount)
+		dir := int32(c.Brain.Registers[dirReg]%8) * 45
+
+		pos := c.getRelPos(object.Rotation{Degree: dir})
+		if pos.Y < 0 || pos.Y >= int32(c.World.Height) {
+			c.Brain.CompareFlag = CND_FAIL
+			c.incCounter()
+			return
+		}
+
+		o := c.World.GetObjectAtPosition(pos)
+		if o == nil {
+			c.Brain.CompareFlag = CND_FAIL
+			c.incCounter()
+			return
+		}
+
+		v, ok := o.(object.Lively)
+		if !ok {
+			c.Brain.CompareFlag = CND_FAIL
+			c.incCounter()
+			return
+		}
+
+		biteStrength := int(math.Round(BaseBiteStrength + float64(c.Weight)))
+		if biteStrength > 255 {
+			biteStrength = 255
+		}
+
+		c.IncreaseEnergy(v.Bite(byte(biteStrength)))
+		c.Brain.CompareFlag = CND_SUCCESS
 		c.incCounter()
 	}, true},
 	// Recycle stuff to energy

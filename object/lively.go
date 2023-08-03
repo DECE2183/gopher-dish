@@ -1,5 +1,11 @@
 package object
 
+const (
+	RelatedDepth = 5
+)
+
+type ParentsChain [RelatedDepth]uint64
+
 type Lively interface {
 	Object
 
@@ -7,8 +13,10 @@ type Lively interface {
 	GetHealth() byte
 	GetEnergy() byte
 	GetGenomeHash() uint64
+	GetParentsChain() ParentsChain
 
 	IsDied() bool
+	IsReleated(another Lively) bool
 
 	LoseHealth(health byte) bool
 	SpendEnergy(energy byte) bool
@@ -17,5 +25,6 @@ type Lively interface {
 	IncreaseEnergy(energy byte) bool
 
 	Reproduce(dir Rotation) bool
+	Bite(strength byte) byte
 	Die() bool
 }

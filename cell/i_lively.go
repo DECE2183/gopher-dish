@@ -23,8 +23,23 @@ func (c *Cell) GetGenomeHash() uint64 {
 	return c.Genome.Hash
 }
 
+func (c *Cell) GetParentsChain() object.ParentsChain {
+	return c.ParentsChain
+}
+
 func (c *Cell) IsDied() bool {
 	return c.Died
+}
+
+func (c *Cell) IsReleated(another object.Lively) bool {
+	ochain := another.GetParentsChain()
+	oid := another.GetID()
+	for i := range ochain {
+		if ochain[i] == c.Name || ochain[i] == c.ParentsChain[i] || c.ParentsChain[i] == oid {
+			return true
+		}
+	}
+	return false
 }
 
 func (c *Cell) LoseHealth(health byte) bool {
@@ -48,9 +63,9 @@ func (c *Cell) SpendEnergy(energy byte) bool {
 		c.Energy -= byte(energyDec)
 	} else {
 		// If there is no energy then decrement health
-		c.Energy = 0
 		energyDec -= uint32(c.Energy)
-		healthDec := uint32(math.Round(float64(energyDec) + BaseHealthDecrement*float64(c.Age)*AgeInfluenceMultiplier))
+		c.Energy = 0
+		healthDec := uint32(math.Round(float64(energyDec) + BaseHealthDecrement + float64(c.Age)*AgeInfluenceMultiplier))
 		if healthDec > 255 {
 			healthDec = 255
 		}
@@ -98,9 +113,39 @@ func (c *Cell) Reproduce(rot object.Rotation) bool {
 	return true
 }
 
+func (c *Cell) Bite(strength byte) byte {
+	if c.Died {
+		c.World.RemoveObject(c.Name)
+		return c.Energy
+	}
+
+	biteStrength := int(math.Round(float64(strength) + float64(c.Age)*AgeInfluenceMultiplier - float64(c.Weight)))
+	if biteStrength > 255 {
+		biteStrength = 255
+	} else if biteStrength <= 0 {
+		return 0
+	}
+
+	c.SpendEnergy(byte(biteStrength))
+
+	energy := biteStrength - int(math.Round(float64(c.Age)*AgeInfluenceMultiplier)) + int(c.Weight)
+	if c.Died {
+		energy += int(c.Energy)
+		c.World.RemoveObject(c.Name)
+	}
+
+	if energy > 255 {
+		energy = 255
+	} else if energy <= 0 {
+		return 0
+	}
+
+	return byte(energy / 4)
+}
+
 func (c *Cell) Die() bool {
+	c.Energy += BaseEnergyDecrement
 	c.Health = 0
 	c.Died = true
-	c.World.RemoveObject(c.Name)
 	return true
 }

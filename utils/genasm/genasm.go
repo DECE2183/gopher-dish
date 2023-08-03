@@ -30,6 +30,7 @@ var commandNames = map[cell.Command]string{
 	cell.CMD_MOVE:      "move",
 	cell.CMD_ROTATE:    "rot",
 	cell.CMD_CHECKPOS:  "cpos",
+	cell.CMD_CHECKREL:  "crel",
 	cell.CMD_BITE:      "bite",
 	cell.CMD_RECYCLE:   "recl",
 	cell.CMD_REPRODUCE: "repr",
@@ -67,7 +68,8 @@ var commandArgs = map[cell.Command][]argType{
 	cell.CMD_MOVE:      {_ARG_REG},
 	cell.CMD_ROTATE:    {_ARG_REG},
 	cell.CMD_CHECKPOS:  {_ARG_REG, _ARG_REG},
-	cell.CMD_BITE:      {},
+	cell.CMD_CHECKREL:  {_ARG_REG, _ARG_REG},
+	cell.CMD_BITE:      {_ARG_REG},
 	cell.CMD_RECYCLE:   {_ARG_CONST},
 	cell.CMD_REPRODUCE: {},
 	// Bagage commands

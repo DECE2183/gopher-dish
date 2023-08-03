@@ -22,7 +22,7 @@ var (
 	colorMinerals = pixel.RGB(0.3, 0.74, 1)
 
 	colorObjectLively = pixel.RGB(0.38, 0.58, 0.27)
-	colorObjectDied   = pixel.RGB(112.0/255.0, 51.0/255.0, 13.0/255.0)
+	colorObjectDied   = pixel.RGB(0.8, 0.698, 0.729)
 
 	colorObjectHealthMax = pixel.RGB(0.188, 0.91, 0.118)
 	colorObjectHealthMin = pixel.RGB(0.8, 0.675, 0.161)

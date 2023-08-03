@@ -19,7 +19,7 @@ type wDescriptor struct {
 type wCellDescriptor struct {
 	Id           uint64
 	Generation   uint64
-	ParentsChain [cell.RelatedDepth]uint64
+	ParentsChain object.ParentsChain
 
 	Age    uint32
 	Health byte
