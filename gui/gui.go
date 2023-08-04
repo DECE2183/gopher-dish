@@ -1,14 +1,15 @@
 package gui
 
 import (
+	_ "embed"
 	"fmt"
 	"math/rand"
 	"os"
 	"time"
-	"unicode"
 
 	"gopher-dish/cell"
 	"gopher-dish/gui/filepicker"
+	"gopher-dish/gui/fonts"
 	"gopher-dish/gui/widgets"
 	"gopher-dish/object"
 	"gopher-dish/world"
@@ -19,13 +20,14 @@ import (
 	"github.com/faiface/pixel/pixelgl"
 	"github.com/faiface/pixel/text"
 	"golang.org/x/image/colornames"
-	"golang.org/x/image/font/basicfont"
 )
+
+//go:embed shaders/blur.frag
+var shaderBlur string
 
 var (
 	ticker      *time.Ticker
 	worldToDraw *world.World
-	textAtlas   *text.Atlas
 )
 
 func Run(updateInterval time.Duration, world *world.World) {
@@ -49,7 +51,7 @@ func initGUI() {
 	wd := NewWorldDrawer(worldToDraw)
 	wd.Move(win.Bounds().Center())
 
-	btnPlay := widgets.NewButton("play", pixel.V(5, 29), pixel.V(60, 30))
+	btnPlay := widgets.NewButton("play", pixel.V(win.Bounds().W()-310, win.Bounds().H()-46), pixel.V(300, 36))
 	btnStop := widgets.NewButton("stop", pixel.V(70, 29), pixel.V(60, 30))
 
 	btnNormal := widgets.NewButton("normal", pixel.V(150, 29), pixel.V(60, 30))
@@ -60,8 +62,14 @@ func initGUI() {
 	btnSave := widgets.NewButton("save", pixel.V(425, 29), pixel.V(60, 30))
 	btnRestart := widgets.NewButton("restart", pixel.V(490, 29), pixel.V(60, 30))
 
-	textAtlas = text.NewAtlas(basicfont.Face7x13, text.ASCII, text.RangeTable(unicode.Latin))
-	statusText := text.New(pixel.V(0, 0), textAtlas)
+	statusText := text.New(pixel.V(0, 0), fonts.RedhatMonoMedium12)
+
+	viewCanvas := pixelgl.NewCanvas(pixel.R(0, 0, cfg.Bounds.Max.X, cfg.Bounds.Max.Y-24))
+	viewCanvas.SetSmooth(true)
+
+	sidePanelCanvas := pixelgl.NewCanvas(pixel.R(0, 0, 320, cfg.Bounds.Max.Y-24))
+	sidePanelCanvas.SetFragmentShader(shaderBlur)
+	sidePanelCanvas.SetSmooth(true)
 
 	statusPanelBg := imdraw.New(nil)
 	createStatusBar(statusPanelBg, win.Bounds().Max.X, 24)
@@ -85,11 +93,23 @@ func initGUI() {
 		}
 
 		win.Clear(colornames.White)
-		wd.Draw(win)
+
+		viewCanvas.SetBounds(pixel.R(0, 0, win.Bounds().W(), win.Bounds().H()-24))
+		viewCanvas.Clear(colornames.White)
+		wd.Draw(viewCanvas)
+		viewCanvas.Draw(win, pixel.IM.Moved(pixel.V(win.Bounds().W()/2, win.Bounds().H()/2)))
+
+		sidePanelCanvas.SetBounds(pixel.R(0, 0, 320, win.Bounds().H()-24))
+		sidePanelCanvas.Clear(colornames.White)
+		viewCanvas.Draw(sidePanelCanvas, pixel.IM.Moved(pixel.V(sidePanelCanvas.Bounds().W()-viewCanvas.Bounds().W()/2, viewCanvas.Bounds().H()/2)))
+		sidePanelCanvas.Draw(win, pixel.IM.Moved(pixel.V(win.Bounds().W()-160, win.Bounds().H()/2+12)))
+
 		createStatusBar(statusPanelBg, win.Bounds().Max.X, 24)
 		printStatus(statusText, wd.world, win.Bounds().Max.X, 24)
 		statusPanelBg.Draw(win)
 		statusText.Draw(win, pixel.IM)
+
+		btnPlay.SetPos(pixel.V(win.Bounds().W()-310, win.Bounds().H()-46))
 
 		if btnPlay.Draw(win) {
 			wd.world.Paused = false

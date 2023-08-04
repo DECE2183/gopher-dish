@@ -13,9 +13,10 @@ type Button struct {
 	bounds pixel.Rect
 	label  string
 
-	normalDrawer *imdraw.IMDraw
-	hoverDrawer  *imdraw.IMDraw
-	labelDrawer  *text.Text
+	normalDrawer  *imdraw.IMDraw
+	hoverDrawer   *imdraw.IMDraw
+	pressedDrawer *imdraw.IMDraw
+	labelDrawer   *text.Text
 }
 
 func NewButton(label string, pos, size pixel.Vec) *Button {
@@ -41,17 +42,47 @@ func NewButton(label string, pos, size pixel.Vec) *Button {
 	b.hoverDrawer.Push(b.bounds.Min, b.bounds.Max)
 	b.hoverDrawer.Rectangle(0)
 
+	b.pressedDrawer = imdraw.New(nil)
+	b.pressedDrawer.Color = colorButtonPressed
+	b.pressedDrawer.Push(b.bounds.Min, b.bounds.Max)
+	b.pressedDrawer.Rectangle(0)
+
 	return b
 }
 
+func (b *Button) SetBounds(bounds pixel.Rect) {
+	b.bounds = bounds
+}
+
+func (b *Button) SetPos(pos pixel.Vec) {
+	b.bounds.Max = pos.Add(b.bounds.Size())
+	b.bounds.Min = pos
+}
+
+func (b *Button) SetSize(size pixel.Vec) {
+	b.bounds.Max = size.Add(b.bounds.Min)
+}
+
 func (b *Button) Draw(win *pixelgl.Window) bool {
-	defer b.labelDrawer.Draw(win, pixel.IM)
+	b.normalDrawer.Clear()
+
+	defer func() {
+		b.normalDrawer.Push(b.bounds.Min, b.bounds.Max)
+		b.normalDrawer.Rectangle(0)
+		b.normalDrawer.Draw(win)
+		b.labelDrawer.Orig = b.bounds.Center()
+		b.labelDrawer.Draw(win, pixel.IM)
+	}()
 
 	if b.bounds.Contains(win.MousePosition()) {
-		b.hoverDrawer.Draw(win)
-		return win.Pressed(pixelgl.MouseButtonLeft)
+		if win.Pressed(pixelgl.MouseButtonLeft) {
+			b.normalDrawer.Color = colorButtonPressed
+			return true
+		}
+		b.normalDrawer.Color = colorButtonHover
+		return false
 	}
 
-	b.normalDrawer.Draw(win)
+	b.normalDrawer.Color = colorButton
 	return false
 }
