@@ -3,6 +3,7 @@ package world
 import (
 	"gopher-dish/object"
 	"math"
+	"math/rand"
 	"runtime"
 	"sync"
 	"time"
@@ -13,9 +14,8 @@ const (
 	WorldYearsPerEpoch = 100
 
 	WorldSunlightMultiplier = 1.0
-	WorldSunlightBeginValue = 12.0
-	WorldSunlightEndValue   = 0.0
-	WorldSunlightBeginPos   = 0.0
+	WorldSunlightValue      = 18.0
+	WorldSunlightBeginPos   = -0.2
 	WorldSunlightEndPos     = 0.85
 
 	WorldMineralsMultiplier = 1.0
@@ -30,6 +30,17 @@ const (
 	WORLD_STATE_PREPARE
 	WORLD_STATE_HANDLE
 )
+
+type WorldEpochTrend int
+
+const (
+	TREND_NORMAL WorldEpochTrend = iota
+	TREND_WARM
+	TREND_COLD
+	TREND_COUNT
+)
+
+const WORLD_TREND_OFFSET = 0.001
 
 type number interface {
 	int | int8 | int16 | int32 | int64 | uint | uint8 | uint16 | uint32 | uint64 | float32 | float64
@@ -48,6 +59,10 @@ type World struct {
 	Ticks uint64
 	Year  uint64
 	Epoch uint64
+
+	Trend         WorldEpochTrend
+	SunlightBegin float64
+	SunlightEnd   float64
 
 	Sunlight [][]byte
 	Minerals [][]byte
@@ -77,6 +92,9 @@ func New(width, height uint32, tickInterval time.Duration) *World {
 		w.Places[i] = make([]object.Movable, w.Height)
 	}
 	w.Objects = make(map[uint64]object.Movable)
+
+	w.SunlightBegin = WorldSunlightBeginPos
+	w.SunlightEnd = WorldSunlightEndPos
 
 	w.calculateSunlight()
 	w.calculateMinerals()
@@ -247,6 +265,8 @@ func (w *World) Handle() {
 		return
 	}
 
+	w.PlacesDrawMux.Lock()
+
 	var yearChanged, epochChanged bool
 
 	w.Ticks++
@@ -255,12 +275,28 @@ func (w *World) Handle() {
 		w.Year++
 
 		if w.Year%WorldYearsPerEpoch == 0 {
+			w.Trend = WorldEpochTrend(rand.Intn(int(TREND_COUNT)))
 			epochChanged = true
 			w.Epoch++
 		}
-	}
 
-	w.PlacesDrawMux.Lock()
+		switch w.Trend {
+		case TREND_WARM:
+			if w.SunlightBegin > -1 {
+				w.SunlightBegin -= WORLD_TREND_OFFSET
+			}
+			if w.SunlightEnd < 1.5 {
+				w.SunlightEnd += WORLD_TREND_OFFSET
+			}
+			w.calculateSunlight()
+		case TREND_COLD:
+			if w.SunlightBegin < w.SunlightEnd {
+				w.SunlightBegin += WORLD_TREND_OFFSET
+				w.SunlightEnd -= WORLD_TREND_OFFSET
+			}
+			w.calculateSunlight()
+		}
+	}
 
 	w.state = WORLD_STATE_PREPARE
 	for _, o := range w.Objects {
@@ -298,14 +334,29 @@ func (w *World) Handle() {
 }
 
 func (w *World) calculateSunlight() {
-	sunlightBegin := uint32(math.Round(float64(w.Height) * WorldSunlightBeginPos))
-	sunlightEnd := uint32(math.Round(float64(w.Height) * WorldSunlightEndPos))
+	sunlightBegin := int(math.Round(float64(w.Height) * w.SunlightBegin))
+	sunlightMid := int(math.Round(float64(w.Height) * (w.SunlightBegin + w.SunlightEnd) / 2))
+	sunlightEnd := int(math.Round(float64(w.Height) * w.SunlightEnd))
 
 	w.Sunlight = make([][]byte, w.Width)
 	for x := 0; x < int(w.Width); x++ {
 		w.Sunlight[x] = make([]byte, w.Height)
-		for y := sunlightBegin; y < sunlightEnd; y++ {
-			sunlightValue := remap(float64(y), float64(sunlightBegin), float64(sunlightEnd), WorldSunlightBeginValue, WorldSunlightEndValue)
+
+		y := sunlightBegin
+		if y < 0 {
+			y = 0
+		}
+		for ; y < sunlightMid; y++ {
+			sunlightValue := remap(float64(y), float64(sunlightBegin), float64(sunlightEnd), 0, WorldSunlightValue)
+			w.Sunlight[x][y] = byte(math.Round(sunlightValue * WorldSunlightMultiplier))
+		}
+
+		end := sunlightEnd
+		if end > int(w.Height) {
+			end = int(w.Height)
+		}
+		for y = sunlightMid; y < end; y++ {
+			sunlightValue := remap(float64(y), float64(sunlightBegin), float64(sunlightEnd), WorldSunlightValue, 0)
 			w.Sunlight[x][y] = byte(math.Round(sunlightValue * WorldSunlightMultiplier))
 		}
 	}

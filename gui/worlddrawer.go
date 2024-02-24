@@ -51,6 +51,7 @@ const (
 type WorldDrawer struct {
 	Filter WorldFilter
 
+	lastDrawnYear uint64
 	world         *world.World
 	canvas        *pixelgl.Canvas
 	baseDrawer    *imdraw.IMDraw
@@ -153,9 +154,6 @@ func (wd *WorldDrawer) ComputeObjectColor(obj object.Object) color.Color {
 }
 
 func (wd *WorldDrawer) DrawObjects() {
-	wd.world.PlacesDrawMux.Lock()
-	defer wd.world.PlacesDrawMux.Unlock()
-
 	wd.objectsDrawer.Clear()
 	for _, o := range wd.world.Objects {
 		pos := o.GetPosition()
@@ -183,8 +181,14 @@ func (wd *WorldDrawer) DrawObjects() {
 
 func (wd *WorldDrawer) Draw(t pixel.Target) {
 	wd.canvas.Clear(colornames.White)
+	wd.world.PlacesDrawMux.Lock()
+	if wd.world.Year != wd.lastDrawnYear && wd.world.Trend != world.TREND_NORMAL {
+		wd.lastDrawnYear = wd.world.Year
+		wd.DrawBase()
+	}
 	wd.baseDrawer.Draw(wd.canvas)
 	wd.DrawObjects()
+	wd.world.PlacesDrawMux.Unlock()
 	wd.objectsDrawer.Draw(wd.canvas)
 	wd.canvas.Draw(t, wd.matrix)
 }

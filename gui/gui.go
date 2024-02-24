@@ -25,6 +25,13 @@ import (
 //go:embed shaders/blur.frag
 var shaderBlur string
 
+var worldTrendName = map[world.WorldEpochTrend]string{
+	world.TREND_NORMAL: "normal",
+	world.TREND_WARM:   "warm",
+	world.TREND_COLD:   "cold",
+	world.TREND_COUNT:  "unknown",
+}
+
 var (
 	ticker      *time.Ticker
 	worldToDraw *world.World
@@ -174,15 +181,16 @@ func createStatusBar(imd *imdraw.IMDraw, width, height float64) {
 	imd.Rectangle(0)
 }
 
-func printStatus(txt *text.Text, world *world.World, width, height float64) {
-	if world.Ticks%10 != 0 {
+func printStatus(txt *text.Text, w *world.World, width, height float64) {
+	if w.Ticks%10 != 0 {
 		return
 	}
 
 	txt.Clear()
 	txt.Color = pixel.RGB(0.53, 0.53, 0.53)
 	txt.Dot = pixel.V(height/2, height/2-txt.BoundsOf("A").H()/4).Floor()
-	fmt.Fprintf(txt, "FPS: % 5d | Population: % 8d | Day: % 8d | Year: % 8d | Epoch: % 8d", world.Framerate, len(world.Objects), world.Ticks, world.Year, world.Epoch)
+	fmt.Fprintf(txt, "FPS: % 5d | Population: % 8d | Day: % 8d | Year: % 8d | Epoch: % 8d | Trend: % 8s",
+		w.Framerate, len(w.Objects), w.Ticks, w.Year, w.Epoch, worldTrendName[w.Trend])
 }
 
 func saveWorld(w *world.World) {
