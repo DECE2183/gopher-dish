@@ -82,7 +82,9 @@ type Cell struct {
 	Brain      Brain
 	TriggerMap map[TriggerSource]*Sensor
 
-	Bagage [BagageSize]object.Pickable
+	Bagage         [BagageSize]object.Pickable
+	BagageSelected uint32
+	BagageFullness uint32
 
 	World    *world.World
 	Position object.Position
@@ -105,7 +107,9 @@ type saveCellDescriptor struct {
 	Genome Genome
 	Brain  Brain
 
-	Bagage [BagageSize]uint64
+	Bagage         [BagageSize]uint64
+	BagageSelected uint32
+	BagageFullness uint32
 
 	Position object.Position
 	Rotation object.Rotation
@@ -146,11 +150,20 @@ func (c *Cell) incCounter() uint64 {
 	return c.Brain.CommandCounter
 }
 
-func (c *Cell) recycle(rType uint64) {
+func (c *Cell) recycle(rType uint64) bool {
 	switch rType {
 	case RCL_SUNENERGY:
 		c.IncreaseEnergy(c.World.GetSunlightAtPosition(c.Position))
+		return true
 	case RCL_BAGAGE:
+		if c.Bagage[c.BagageSelected] == nil {
+			return false
+		}
+		c.IncreaseEnergy(c.Bagage[c.BagageSelected].GetEnergy())
+		c.Bagage[c.BagageSelected] = nil
+		return true
+	default:
+		return false
 	}
 }
 

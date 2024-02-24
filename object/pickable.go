@@ -4,5 +4,5 @@ type Pickable interface {
 	Object
 	GetWeight() byte
 	PickUp() bool
-	Drop() bool
+	Drop(Position) bool
 }

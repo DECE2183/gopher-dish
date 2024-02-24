@@ -47,12 +47,12 @@ const (
 	CMD_RECYCLE     // + recycle something to energy
 	CMD_REPRODUCE   // + reproduce
 	// Bagage commands
-	CMD_PICKUP    // - pickup something
-	CMD_DROP      // - drop selected item from bag
-	CMD_BAGSIZE   // - count items in bag
-	CMD_BAGACTIVE // - set active item in bag
-	CMD_BAGENERGY // - get ebergy of selected item in bag
-	CMD_BAGCHECK  // - get type of selected item in bag
+	CMD_PICKUP    // + pickup something
+	CMD_DROP      // + drop selected item from bag
+	CMD_BAGSIZE   // + count items in bag
+	CMD_BAGACTIVE // + set active item in bag
+	CMD_BAGENERGY // + get energy of selected item in bag
+	CMD_BAGCHECK  // + get type of selected item in bag
 	// Stats commands
 	CMD_GETAGE     // + get self age
 	CMD_GETHEALTH  // + get self health
@@ -377,7 +377,7 @@ var commandMap = map[Command]CommandDescriptor{
 			return
 		}
 
-		v, ok := o.(object.Lively)
+		other, ok := o.(object.Lively)
 		if !ok {
 			c.Brain.CompareFlag = CND_FAIL
 			c.incCounter()
@@ -389,7 +389,7 @@ var commandMap = map[Command]CommandDescriptor{
 			biteStrength = 255
 		}
 
-		c.IncreaseEnergy(v.Bite(byte(biteStrength)))
+		c.IncreaseEnergy(other.Bite(byte(biteStrength)))
 		c.Brain.CompareFlag = CND_SUCCESS
 		c.incCounter()
 	}, true},
@@ -412,7 +412,7 @@ var commandMap = map[Command]CommandDescriptor{
 			return
 		}
 
-		v, ok := o.(object.Lively)
+		other, ok := o.(object.Lively)
 		if !ok {
 			c.Brain.CompareFlag = CND_FAIL
 			c.incCounter()
@@ -426,23 +426,175 @@ var commandMap = map[Command]CommandDescriptor{
 			shenergy = int(c.Energy)
 		}
 
-		v.IncreaseEnergy(byte(shenergy))
+		other.IncreaseEnergy(byte(shenergy))
 		c.Brain.CompareFlag = CND_SUCCESS
 		c.incCounter()
 	}, true},
 	// Recycle stuff to energy
 	CMD_RECYCLE: {func(c *Cell) {
 		recycleType := truncCmd(c.Genome.Code[c.incCounter()], RCL_ENUM_SIZE)
-		c.recycle(recycleType)
+		ok := c.recycle(recycleType)
+		if !ok {
+			c.Brain.CompareFlag = CND_FAIL
+			c.incCounter()
+			return
+		}
+		c.Brain.CompareFlag = CND_SUCCESS
 		c.incCounter()
 	}, true},
 	// Reproduce
 	CMD_REPRODUCE: {func(c *Cell) {
 		dirReg := truncCmd(c.Genome.Code[c.incCounter()], RegistersCount)
 		dir := int32(c.Brain.Registers[dirReg]%8) * 45
-		c.Reproduce(object.Rotation{Degree: dir})
+		ok := c.Reproduce(object.Rotation{Degree: dir})
+		if !ok {
+			c.Brain.CompareFlag = CND_FAIL
+			c.incCounter()
+			return
+		}
+		c.Brain.CompareFlag = CND_SUCCESS
 		c.incCounter()
 	}, true},
+
+	// Pickup something
+	CMD_PICKUP: {func(c *Cell) {
+		dirReg := truncCmd(c.Genome.Code[c.incCounter()], RegistersCount)
+		dir := int32(c.Brain.Registers[dirReg]%8) * 45
+
+		if c.BagageFullness >= BagageSize {
+			c.Brain.CompareFlag = CND_FAIL
+			c.incCounter()
+			return
+		}
+
+		pos := c.getRelPos(object.Rotation{Degree: dir})
+		if pos.Y < 0 || pos.Y >= int32(c.World.Height) {
+			c.Brain.CompareFlag = CND_FAIL
+			c.incCounter()
+			return
+		}
+
+		o := c.World.GetObjectAtPosition(pos)
+		if o == nil {
+			c.Brain.CompareFlag = CND_FAIL
+			c.incCounter()
+			return
+		}
+
+		other, ok := o.(object.Pickable)
+		if !ok {
+			c.Brain.CompareFlag = CND_FAIL
+			c.incCounter()
+			return
+		}
+
+		ok = other.PickUp()
+		if !ok {
+			c.Brain.CompareFlag = CND_FAIL
+			c.incCounter()
+			return
+		}
+
+		c.Brain.CompareFlag = CND_SUCCESS
+		c.Bagage[c.BagageFullness] = other
+		c.BagageFullness++
+		c.incCounter()
+	}, true},
+	// Drop selected item from bag
+	CMD_DROP: {func(c *Cell) {
+		dirReg := truncCmd(c.Genome.Code[c.incCounter()], RegistersCount)
+		dir := int32(c.Brain.Registers[dirReg]%8) * 45
+
+		if c.BagageFullness == 0 || c.Bagage[c.BagageSelected] == nil {
+			c.Brain.CompareFlag = CND_FAIL
+			c.incCounter()
+			return
+		}
+
+		pos := c.getRelPos(object.Rotation{Degree: dir})
+		if pos.Y < 0 || pos.Y >= int32(c.World.Height) {
+			c.Brain.CompareFlag = CND_FAIL
+			c.incCounter()
+			return
+		}
+
+		o := c.World.GetObjectAtPosition(pos)
+		if o != nil {
+			c.Brain.CompareFlag = CND_FAIL
+			c.incCounter()
+			return
+		}
+
+		other, ok := o.(object.Pickable)
+		if !ok {
+			c.Brain.CompareFlag = CND_FAIL
+			c.incCounter()
+			return
+		}
+
+		ok = other.Drop(pos)
+		if !ok {
+			c.Brain.CompareFlag = CND_FAIL
+			c.incCounter()
+			return
+		}
+
+		c.Brain.CompareFlag = CND_SUCCESS
+		c.Bagage[c.BagageSelected] = nil
+		c.incCounter()
+	}, true},
+	// Count items in bag
+	CMD_BAGSIZE: {func(c *Cell) {
+		reg := truncCmd(c.Genome.Code[c.incCounter()], RegistersCount)
+		c.Brain.Registers[reg] = byte(c.BagageFullness)
+		c.incCounter()
+	}, false},
+	// Set active item in bag
+	CMD_BAGACTIVE: {func(c *Cell) {
+		c.BagageSelected = uint32(truncCmd(c.Genome.Code[c.incCounter()], BagageSize))
+		c.incCounter()
+	}, false},
+	// Get ebergy of selected item in bag
+	CMD_BAGENERGY: {func(c *Cell) {
+		reg := truncCmd(c.Genome.Code[c.incCounter()], RegistersCount)
+		if c.BagageFullness == 0 || c.Bagage[c.BagageSelected] == nil {
+			c.Brain.Registers[reg] = 0
+			c.incCounter()
+			return
+		}
+
+		other, ok := c.Bagage[c.BagageSelected].(object.Object)
+		if !ok {
+			c.Brain.Registers[reg] = 0
+			c.incCounter()
+			return
+		}
+
+		c.Brain.Registers[reg] = other.GetEnergy()
+		c.incCounter()
+	}, false},
+	// Get type of selected item in bag
+	CMD_BAGCHECK: {func(c *Cell) {
+		reg := truncCmd(c.Genome.Code[c.incCounter()], RegistersCount)
+		if c.BagageFullness == 0 || c.Bagage[c.BagageSelected] == nil {
+			c.Brain.Registers[reg] = OBJ_EMPTY
+			c.incCounter()
+			return
+		}
+
+		switch other := c.Bagage[c.BagageSelected].(type) {
+		case object.Lively:
+			if other.IsDied() {
+				c.Brain.Registers[reg] = OBJ_DEAD
+			} else {
+				c.Brain.Registers[reg] = OBJ_BODY
+			}
+		default:
+			c.Brain.Registers[reg] = OBJ_EMPTY
+		}
+
+		c.incCounter()
+	}, false},
 
 	// Get self age/10 and write to register
 	CMD_GETAGE: {func(c *Cell) {

@@ -33,12 +33,12 @@ Each cell has 4 general purpose registers and 64 bytes of RAM.
 | SHARE      | share energy with near cell               | :ballot_box_with_check: |
 | RECYCLE    | recycle something to energy               | :ballot_box_with_check: |
 | REPRODUCE  | reproduce                                 | :ballot_box_with_check: |
-| PICKUP     | pickup something                          | :black_square_button:   |
-| DROP       | drop selected item from bag               | :black_square_button:   |
-| BAGSIZE    | count items in bag                        | :black_square_button:   |
-| BAGACTIVE  | set active item in bag                    | :black_square_button:   |
-| BAGENERGY  | get ebergy of selected item in bag        | :black_square_button:   |
-| BAGCHECK   | get type of selected item in bag          | :black_square_button:   |
+| PICKUP     | pickup something                          | :ballot_box_with_check: |
+| DROP       | drop selected item from bag               | :ballot_box_with_check: |
+| BAGSIZE    | count items in bag                        | :ballot_box_with_check: |
+| BAGACTIVE  | set active item in bag                    | :ballot_box_with_check: |
+| BAGENERGY  | get ebergy of selected item in bag        | :ballot_box_with_check: |
+| BAGCHECK   | get type of selected item in bag          | :ballot_box_with_check: |
 | GETAGE     | get self age                              | :ballot_box_with_check: |
 | GETHEALTH  | get self health                           | :ballot_box_with_check: |
 | GETENERGY  | get self energy                           | :ballot_box_with_check: |

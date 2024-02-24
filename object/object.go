@@ -13,4 +13,8 @@ type Object interface {
 	Prepare()
 	Handle(yearChanged, epochChanged bool)
 	Save(writer io.Writer) error
+
+	GetEnergy() byte
+	SpendEnergy(energy byte) bool
+	IncreaseEnergy(energy byte) bool
 }
